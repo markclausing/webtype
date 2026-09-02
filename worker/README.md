@@ -47,7 +47,13 @@ npx wrangler secret put GAME_URL          # ...with a link to the game
 npx wrangler secret put ADMIN_KEY         # lets you clean the board
 ```
 
-**DISCORD_WEBHOOK** posts a line whenever somebody gets onto the board:
+**DISCORD_WEBHOOK** is set on the deployed Worker, pointing at the same channel
+websoccer, webtennis and webracing post to. That is why `announce.js` overrides
+the username: the webhook itself is called after whichever game made it, so
+without it every game in the channel would post under one name. Each embed
+carries its own title, colour and link instead.
+
+It posts a line whenever somebody gets onto the board:
 
 > **MJC** scored **142 300** on their own on NORMAL, as far as stage 3-2
 

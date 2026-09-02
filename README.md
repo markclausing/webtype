@@ -138,6 +138,13 @@ comparison between two games.
 
 ![The board, after three runs](docs/screenshots/scores.png)
 
+Getting onto it is announced in Discord, in the channel the four games share. The
+post says which game is talking and links back to it, because a bare `142 300`
+next to a football result is not something anybody could place. Only rows that
+actually landed in the top ten are news, and the same run arriving from a second
+device is not announced twice — that is worked out by comparing the board before
+and after rather than by trusting what was posted.
+
 ## Online
 
 Two people, one four-character code, one score.

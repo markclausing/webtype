@@ -34,10 +34,10 @@ import {
   SPEED_STEP, STAGE_BONUS, VIEW_H, VIEW_W, WALL_KICK,
 } from '../constants.js';
 import { nextRandom } from '../util.js';
-import { FOES, placeY, target } from './foes.js';
+import { FOES, arrived, placeY, target } from './foes.js';
 import { SPAWN_MARGIN } from './stages.js';
 import { inRock, rockNormal, surfaceAt } from './terrain.js';
-import { anyAlive, difficultyOf, nextStage } from './state.js';
+import { anyAlive, coreOpen, difficultyOf, nextStage } from './state.js';
 import {
   chargeLevel, fireBeam, fireMissiles, firePellet, firePod, stepShot,
 } from './weapons.js';
@@ -187,6 +187,9 @@ function makeFoe(state, def, x, y, entry = {}) {
     trail: def.head ? [] : null,
     flash: 0,
     dying: false,
+    // How far behind the plane of play it still is. Everything but a diver is
+    // simply here, and stays here.
+    z: def.deep ? 1 : 0,
   };
 }
 
@@ -362,6 +365,9 @@ function moveFoe(state, foe) {
 
   const aim = foe.def.aim;
   if (!aim) return;
+  // Something still surfacing is not in the corridor yet, and a shot from a
+  // thing you cannot shoot back at would be the worst of both.
+  if (!arrived(foe)) return;
   // Nothing fires from off the right-hand edge. Being shot by something you
   // have not been shown is the one thing a shooter must never do.
   if (foe.x > state.scroll + VIEW_W - 6) return;
@@ -562,8 +568,21 @@ function moveBoss(state) {
     boss.spawnAt = state.tick;
     const kind = FOES[def.spawns.kind];
     for (let i = 0; i < def.spawns.n; i++) {
-      const y = boss.y + (i - (def.spawns.n - 1) / 2) * 30;
-      state.foes.push(makeFoe(state, kind, boss.x - 20, Math.max(16, Math.min(VIEW_H - 16, y))));
+      if (def.spawns.on === 'rock') {
+        // Bolted to the wall, the way the whole of the foundry is. Placed a
+        // long way in front of the boss so they are a problem on the way in
+        // rather than another thing on top of the one you are fighting.
+        const at = state.scroll + VIEW_W * (0.34 + i * 0.16);
+        const side = (Math.floor(state.tick / def.spawns.every) + i) % 2 ? 'ceil' : 'floor';
+        const surface = surfaceAt(state.stage.terrain, at);
+        const foe = makeFoe(state, kind, at, side === 'ceil' ? surface.ceil : surface.floor,
+          { y: side });
+        state.foes.push(foe);
+        state.events.push({ type: 'bolted', x: foe.x, y: foe.y });
+      } else {
+        const y = boss.y + (i - (def.spawns.n - 1) / 2) * 30;
+        state.foes.push(makeFoe(state, kind, boss.x - 20, Math.max(16, Math.min(VIEW_H - 16, y))));
+      }
     }
   }
 }
@@ -657,7 +676,7 @@ function shotsHitFoes(state) {
   for (const shot of state.shots) {
     if (shot.dead) continue;
     for (const foe of state.foes) {
-      if (foe.dying) continue;
+      if (foe.dying || !arrived(foe)) continue;
       if (!hits(shot, foe)) continue;
       if (shot.hit) {
         if (shot.hit.includes(foe.id)) continue;
@@ -702,7 +721,7 @@ function shotsHitFoes(state) {
     const core = {
       x: boss.x + def.core.dx, y: boss.y + def.core.dy, r: def.core.r,
     };
-    const onCore = hits(shot, core);
+    const onCore = hits(shot, core) && coreOpen(boss);
     const onBody = Math.abs(shot.x - boss.x) <= def.w / 2 + shot.r
       && Math.abs(shot.y - boss.y) <= def.h / 2 + shot.r;
     if (!onCore && !onBody) continue;
@@ -838,7 +857,7 @@ function shipsHitThings(state) {
     const p = ship.pod;
 
     for (const foe of state.foes) {
-      if (foe.dying) continue;
+      if (foe.dying || !arrived(foe)) continue;
       if (p.has && (p.x - foe.x) ** 2 + (p.y - foe.y) ** 2 <= (POD_R + foe.r) ** 2
         && state.tick - p.grindAt >= POD_CONTACT_EVERY) {
         p.grindAt = state.tick;
@@ -857,6 +876,20 @@ function shipsHitThings(state) {
     if (Math.abs(ship.x - boss.x) <= boss.def.w / 2 + SHIP_R
       && Math.abs(ship.y - boss.y) <= boss.def.h / 2 + SHIP_R) {
       hurt(state, ship, DMG_BEAM, 'boss');
+      continue;
+    }
+    // A body you can fly into as well as a head. It belongs to the stage where
+    // half of what kills you is the wall: the thing sweeps the corridor and
+    // leaves you less of it than you thought you had.
+    if (boss.def.tailHurts) {
+      for (let i = 0; i < boss.trail.length; i += 12) {
+        const dx = ship.x - boss.trail[i];
+        const dy = ship.y - boss.trail[i + 1];
+        if (dx * dx + dy * dy <= (SHIP_R + 11) ** 2) {
+          hurt(state, ship, DMG_FOE, 'tail');
+          break;
+        }
+      }
     }
   }
 }

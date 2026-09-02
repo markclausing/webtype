@@ -118,9 +118,41 @@ been alive rather than from where you are, so the spray turns at a steady rate
 and sweeps *through* you instead of following you. It is the opposite of an aimed
 shot, and standing still is the only way to be hit by it.
 
-The bosses have them too: the Crucible builds a minefield around itself while the
-corridor is stopped, the Shoalmother sends seekers, the Vertebra sweeps, and the
-Core does all three.
+**And the divers are not in the corridor yet.** Everything else arrives from the
+right-hand edge, which is a rule rather than a habit: being killed by something
+you were never shown is the one thing a shooter must not do. A diver breaks the
+rule honestly. It hangs behind the plane of play — small, faint, growing, with a
+ring closing in on it — drifting after whoever it means to surface beside. Then
+it arrives, spends two seconds being as solid as anything else, and sinks back
+out. While it is down there it cannot be shot and cannot hurt you, and once it
+starts to leave it cannot be killed at all, so a diver you did not deal with in
+its window is one that got away with it. What it costs you is the seconds you
+spent watching it come up.
+
+## The bosses
+
+Each of the five does something that belongs to its own stage rather than to
+bosses in general.
+
+The **Gatekeeper** does what a gate does: its core sits behind a shutter that
+opens for about two seconds in every four, which is almost exactly what a full
+charge takes to build. Shots at a closed core hit armour. So the first boss in
+the game teaches the gun — wind up while it is shut, spend it the moment it is
+not — which is the whole point of putting it at the end of the stage you are
+meant to be learning on.
+
+The **Vertebra**'s body is solid, not decoration. On the stage where half of what
+kills you is the rock, the boss is another wall that will not hold still.
+
+The **Crucible** bolts new turrets into the walls while you fight it, which is
+the foundry in one habit, and drops mines that stay where they land, because the
+corridor has stopped for the fight.
+
+The **Shoalmother** sends up divers, in the open stage that has the room for
+them.
+
+**The Core** is all of it: a shutter on a shorter cycle, seekers, a ring, and
+divers arriving in the middle of it.
 
 ## The stages
 
@@ -149,6 +181,14 @@ given the same problem.
 The corridor itself is a ceiling and a floor, worked out from a handful of
 keyframes by a pure function and cached. Flying into it costs you hull. A blue
 bolt bounces off it. A fully charged beam does not care.
+
+**The shoal is the exception.** Everywhere else the rock is half the problem and
+decides where you are allowed to be; there it steps back almost out of the way —
+219 world units of clear air at the narrowest point against 48 in the core — so
+up and down costs you nothing and the whole stage is about what is in the air.
+That is deliberate, and it is what makes room for the divers: something that
+arrives out of the background instead of in from the edge needs somewhere to
+arrive.
 
 ![The second stage, with the same ship still carrying what it found in the first](docs/screenshots/spine.png)
 

@@ -240,6 +240,32 @@ export const DROP_R = 11;
 export const DROP_LIFE = 460; // about eight seconds of drifting before it is gone
 export const DROP_DRIFT = -26; // and it drifts leftwards with the corridor
 
+// --- The third dimension -----------------------------------------------------
+
+/**
+ * The diver: something that is not in the corridor yet.
+ *
+ * Everything else in this game arrives from the right-hand edge, and that is a
+ * rule rather than a habit - being killed by something you were never shown is
+ * the one thing a shooter must not do. A diver breaks the rule honestly. It
+ * hangs behind the plane of play where it can be seen but not touched, small and
+ * faint and growing, drifting towards whoever it means to surface beside; then it
+ * arrives, spends a few seconds being solid, and sinks back out.
+ *
+ * The whole design is in the two gates. While it is down there it cannot be shot
+ * and cannot hurt you - so the rise is a warning rather than an ambush - and it
+ * cannot be killed once it starts to leave, so a diver you did not deal with in
+ * its window is a diver that got away with it. What it costs you is the seconds
+ * you spend watching it come up.
+ */
+export const DIVER_RISE = 54; // ticks spent surfacing, in plain sight
+export const DIVER_HOLD = 130; // and how long it is actually here
+export const DIVER_SINK = 44;
+/** Below this it counts as arrived: solid, dangerous, and worth shooting. */
+export const DIVER_HERE = 0.02;
+/** How fast it can follow you while it is still down there. */
+export const DIVER_TRACK = 46;
+
 // --- Scoring -----------------------------------------------------------------
 
 /** What clearing a stage is worth, before the bonus for the hull you kept. */

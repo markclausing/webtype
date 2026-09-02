@@ -14,7 +14,9 @@
  * agree about a run.
  */
 
-import { DT, VIEW_H, VIEW_W } from '../constants.js';
+import {
+  DIVER_HERE, DIVER_HOLD, DIVER_RISE, DIVER_SINK, DIVER_TRACK, DT, VIEW_H, VIEW_W,
+} from '../constants.js';
 import { surfaceAt } from './terrain.js';
 
 /** The nearest ship still flying, or null if there is nobody left to chase. */
@@ -203,6 +205,60 @@ export const FOES = {
   },
 
   /**
+   * The one thing in the corridor that does not come from the right-hand edge.
+   *
+   * It is already there when the stage puts it out, hanging behind the plane of
+   * play: small, faint, and drifting after whoever it intends to surface beside.
+   * Then it arrives, and for two seconds it is as solid as anything else. Then
+   * it goes back down, and while it is going it cannot be killed.
+   *
+   * See the note on DIVER_RISE in constants.js for why this is fair. The short
+   * version is that the whole of the danger is telegraphed and none of it is
+   * sudden: what it costs you is the seconds you spend watching it come up.
+   */
+  diver: {
+    key: 'diver',
+    hp: 10,
+    r: 8,
+    w: 20,
+    h: 20,
+    points: 350,
+    colour: '#b98cff',
+    deep: true,
+    aim: { mode: 'ship', every: 44, n: 2, spread: 0.26 },
+    move(state, foe) {
+      foe.age++;
+      const rising = DIVER_RISE;
+      const here = rising + DIVER_HOLD;
+      const gone = here + DIVER_SINK;
+
+      if (foe.age < rising) {
+        foe.z = 1 - foe.age / rising;
+        // Still down there, and still choosing. Slowly, so that where it is
+        // going to come up is something you can read and move away from.
+        const to = target(state, foe);
+        if (to) {
+          const step = DIVER_TRACK * DT;
+          foe.y += Math.max(-step, Math.min(step, to.y - foe.y));
+        }
+      } else if (foe.age < here) {
+        foe.z = 0;
+      } else if (foe.age < gone) {
+        foe.z = (foe.age - here) / DIVER_SINK;
+      } else {
+        // It got away with it. No explosion and no points: that is the price of
+        // having left it alone.
+        foe.gone = true;
+      }
+
+      // It hangs in the corridor rather than flying down it, so it holds station
+      // with the scroll and arrives at you at walking pace.
+      if (state.phase === 'play') foe.x += state.stage.scroll * DT;
+      foe.y = Math.max(14, Math.min(VIEW_H - 14, foe.y));
+    },
+  },
+
+  /**
    * The head of a snake. Weaves down the corridor pulling its body behind it,
    * and the body is the part you have to eat through first unless you have
    * something that goes round corners.
@@ -259,6 +315,11 @@ export const FOES = {
     },
   },
 };
+
+/** Is this thing actually in the corridor, or still on its way into it? */
+export function arrived(foe) {
+  return !(foe.z > DIVER_HERE);
+}
 
 /** Every kind, for the tests to walk. */
 export const FOE_KEYS = Object.keys(FOES);

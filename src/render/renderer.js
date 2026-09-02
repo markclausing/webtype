@@ -20,7 +20,7 @@ import {
 } from '../constants.js';
 import { STEP } from '../game/terrain.js';
 import { chargeLevel } from '../game/weapons.js';
-import { formatScore, stageLabel } from '../game/state.js';
+import { coreOpen, formatScore, stageLabel } from '../game/state.js';
 import { Fx } from './fx.js';
 
 /** How many stars in each of the three parallax layers. */
@@ -430,6 +430,23 @@ export class Renderer {
       ctx.translate(foe.x, foe.y);
       const hurt = foe.flash > 0;
       const colour = hurt ? '#ffffff' : foe.def.colour;
+
+      // Depth, drawn as the two things that actually read as distance: smaller,
+      // and fainter. A ring closes in on it while it rises, which is the honest
+      // warning - it says both where it is going to arrive and roughly when.
+      if (foe.z > 0) {
+        ctx.globalAlpha = 1 - foe.z * 0.72;
+        ctx.scale(1 - foe.z * 0.55, 1 - foe.z * 0.55);
+        ctx.save();
+        ctx.globalAlpha = (1 - foe.z) * 0.5 + 0.25;
+        ctx.strokeStyle = foe.def.colour;
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([4, 5]);
+        ctx.beginPath();
+        ctx.arc(0, 0, foe.r + 6 + foe.z * 34, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
       // A gradient rather than a flat disc. At a fifth opacity a plain circle
       // is a visible bubble with the enemy sitting inside it, and on something
       // the size of a carrier the bubble is the biggest thing on the screen.
@@ -438,7 +455,7 @@ export class Renderer {
       const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, foe.r * 2.1);
       halo.addColorStop(0, colour);
       halo.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.globalAlpha = hurt ? 0.6 : 0.3;
+      ctx.globalAlpha = (hurt ? 0.6 : 0.3) * (1 - (foe.z || 0) * 0.8);
       ctx.fillStyle = halo;
       ctx.beginPath();
       ctx.arc(0, 0, foe.r * 2.1, 0, Math.PI * 2);
@@ -520,9 +537,19 @@ export class Renderer {
       ctx.fill();
     }
 
-    // And the core, which is the only part that really matters.
-    const pulse = 0.75 + 0.25 * Math.sin(this.frame * 0.14);
+    // And the core, which is the only part that really matters - behind a
+    // shutter, on the two bosses that have one. How far open it is has to be
+    // legible from across the screen, because it is the whole fight: the plates
+    // slide, the glow comes up with them, and a shut core is visibly a lid.
     const c = def.core;
+    let slide = 1;
+    if (def.shutter) {
+      const phase = boss.age % def.shutter.every;
+      slide = coreOpen(boss)
+        ? Math.min(1, phase / 12, Math.max(0, (def.shutter.open - phase) / 12))
+        : 0;
+    }
+    const pulse = (0.75 + 0.25 * Math.sin(this.frame * 0.14)) * (0.35 + slide * 0.65);
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     const g = ctx.createRadialGradient(c.dx, c.dy, 0, c.dx, c.dy, c.r * 3 * pulse);
@@ -554,6 +581,25 @@ export class Renderer {
     ctx.beginPath();
     ctx.arc(c.dx, c.dy, c.r * 1.5, this.frame * 0.05, this.frame * 0.05 + Math.PI * 1.2);
     ctx.stroke();
+
+    if (def.shutter) {
+      ctx.globalAlpha = 1;
+      const gap = c.r * 1.9 * slide;
+      for (const up of [-1, 1]) {
+        ctx.fillStyle = shade(def.colour, 0.72);
+        // Kept inside the body: at full width the plates hung off the front of
+        // the thing and looked like something that had fallen off it.
+        const wide = Math.min(c.r * 2.6, def.w - 12);
+        roundRect(ctx, c.dx - wide / 2, c.dy + up * gap - (up > 0 ? 0 : c.r * 1.5),
+          wide, c.r * 1.5, 3);
+        ctx.fill();
+        ctx.strokeStyle = def.glow;
+        ctx.lineWidth = 1.2;
+        ctx.globalAlpha = 0.55;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+    }
     ctx.restore();
   }
 
@@ -1365,6 +1411,35 @@ function drawFoe(ctx, foe, colour, frame, state) {
         ctx.fill();
       }
       break;
+
+    case 'diver': {
+      // Deliberately unlike everything else in the corridor: three shells
+      // turning against each other round an eye. It should read as a thing that
+      // does not belong in the plane you are flying in.
+      ctx.strokeStyle = colour;
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 3; i++) {
+        ctx.save();
+        ctx.rotate(frame * 0.02 * (i % 2 ? -1 : 1) + (i * Math.PI * 2) / 3);
+        ctx.beginPath();
+        ctx.arc(0, 0, r * (1.15 - i * 0.16), 0, Math.PI * 1.1);
+        ctx.stroke();
+        ctx.restore();
+      }
+      ctx.fillStyle = colour;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.55, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#16091f';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, r * 0.34, r * 0.46, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(-r * 0.1, 0, r * 0.14, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
 
     case 'snake':
       ctx.beginPath();

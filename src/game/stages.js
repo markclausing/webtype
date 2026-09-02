@@ -224,6 +224,13 @@ const s4 = [
   ...wave(2900, 'drone', { y: 90, n: 7, spacing: 24 }),
   ...wave(3260, 'mine', { y: 150, n: 6, spacing: 28 }),
   ...wave(3520, 'drone', { y: 190, n: 8, spacing: 22 }),
+  // Divers, in the stage that has the room for them.
+  ...wave(1000, 'diver', { y: 135 }),
+  ...wave(1560, 'diver', { y: 90, n: 2, spacing: 90 }),
+  ...wave(2240, 'diver', { y: 180 }),
+  ...wave(2560, 'diver', { y: 110, n: 2, spacing: 80 }),
+  ...wave(3000, 'diver', { y: 150, n: 3, spacing: 70 }),
+  ...wave(3400, 'diver', { y: 100, n: 3, spacing: 64 }),
 ];
 
 const s5 = [
@@ -275,6 +282,11 @@ const s5 = [
   ...wave(3260, 'mine', { y: 150, n: 7, spacing: 24 }),
   ...wave(3480, 'swoop', { y: 110, n: 7, spacing: 24 }),
   ...wave(3660, 'drone', { y: 140, n: 8, spacing: 20 }),
+  // And again in the core, where they arrive alongside everything else.
+  ...wave(1520, 'diver', { y: 120, n: 2, spacing: 76 }),
+  ...wave(2260, 'diver', { y: 160, n: 2, spacing: 70 }),
+  ...wave(2940, 'diver', { y: 120, n: 3, spacing: 64 }),
+  ...wave(3560, 'diver', { y: 160, n: 3, spacing: 60 }),
 ];
 
 /**
@@ -320,6 +332,11 @@ export const STAGES = [
       w: 74,
       h: 96,
       core: { dx: -22, dy: 0, r: 15 },
+      // It does what a gate does. The core is behind a shutter that opens for
+      // about two seconds in every four, which is almost exactly the time a full
+      // charge takes to build - so the fight teaches the gun: wind up while it
+      // is shut, spend it the moment it is not.
+      shutter: { every: 260, open: 112 },
       pattern: 'hover',
       speed: 44,
       colour: '#5f86b8',
@@ -370,6 +387,9 @@ export const STAGES = [
       pattern: 'weave',
       speed: 62,
       tail: 8,
+      // The body is solid. On the stage where half of what kills you is the
+      // rock, the boss is another wall that will not hold still.
+      tailHurts: true,
       colour: '#7a4fb5',
       glow: '#d3a6ff',
       guns: [
@@ -418,6 +438,9 @@ export const STAGES = [
       speed: 78,
       colour: '#b5622a',
       glow: '#ffbb66',
+      // It bolts new guns into the walls while you fight it, which is the whole
+      // stage in one habit.
+      spawns: { kind: 'turret', every: 230, n: 2, on: 'rock' },
       guns: [
         { dx: -40, dy: -44, every: 46, mode: 'aimed', n: 1 },
         { dx: -40, dy: 44, every: 46, mode: 'aimed', n: 1 },
@@ -433,20 +456,26 @@ export const STAGES = [
   {
     key: 'shoal',
     name: 'THE SHOAL',
-    blurb: 'Everything moves at once and none of it is in a straight line. The '
-      + 'search rings were made for this stage.',
+    blurb: 'Open water. The rock steps back almost out of the way here, so up '
+      + 'and down costs you nothing and everything that matters is what is in '
+      + 'the air - including the things that are not in it yet.',
     length: 3760,
     speed: 1.16,
-    rough: 0.9,
+    rough: 0.6,
+    // The one stage where the vertical axis barely counts. Everywhere else the
+    // rock is half of the problem and the corridor decides where you may be;
+    // here it is nearly the full height of the screen from end to end, which
+    // makes room for the divers - a threat that arrives out of the background
+    // instead of in from the edge needs somewhere to arrive.
     frames: [
-      { at: 0, ceil: 16, floor: 254 },
-      { at: 600, ceil: 40, floor: 230 },
-      { at: 1100, ceil: 24, floor: 246 },
-      { at: 1600, ceil: 68, floor: 202 },
-      { at: 2100, ceil: 32, floor: 238 },
-      { at: 2600, ceil: 58, floor: 212 },
-      { at: 3100, ceil: 26, floor: 244 },
-      { at: 3760, ceil: 14, floor: 256 },
+      { at: 0, ceil: 14, floor: 256 },
+      { at: 600, ceil: 20, floor: 250 },
+      { at: 1100, ceil: 14, floor: 256 },
+      { at: 1600, ceil: 26, floor: 244 },
+      { at: 2100, ceil: 16, floor: 254 },
+      { at: 2600, ceil: 24, floor: 246 },
+      { at: 3100, ceil: 14, floor: 256 },
+      { at: 3760, ceil: 12, floor: 258 },
     ],
     script: s4,
     theme: {
@@ -468,7 +497,7 @@ export const STAGES = [
       speed: 58,
       colour: '#1f8f80',
       glow: '#8affe4',
-      spawns: { kind: 'drone', every: 92, n: 2 },
+      spawns: { kind: 'diver', every: 130, n: 2 },
       guns: [
         { dx: -34, dy: 0, every: 84, mode: 'fan', n: 7, spread: 1.3 },
         { dx: -34, dy: -30, every: 128, mode: 'seeker', n: 2, spread: 0.4 },
@@ -512,11 +541,14 @@ export const STAGES = [
       w: 96,
       h: 120,
       core: { dx: 0, dy: 0, r: 20 },
+      // Everything the other four do, which is what the last stage is: the
+      // gatekeeper's shutter, on a shorter cycle and with less warning.
+      shutter: { every: 210, open: 84 },
       pattern: 'charge',
       speed: 66,
       colour: '#a81f3c',
       glow: '#ff7f96',
-      spawns: { kind: 'mine', every: 130, n: 3 },
+      spawns: { kind: 'diver', every: 150, n: 2 },
       guns: [
         { dx: -40, dy: 0, every: 70, mode: 'ring', n: 14 },
         { dx: -44, dy: -40, every: 54, mode: 'aimed', n: 1 },

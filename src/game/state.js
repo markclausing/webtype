@@ -184,6 +184,21 @@ export function formatScore(n) {
   return String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 }
 
+/**
+ * Is the boss's core exposed this tick?
+ *
+ * A boss with no shutter is always open, which is most of them. The two that
+ * have one are the two whose stages are about timing: the gatekeeper opens and
+ * shuts because that is what a gate does, and because stage one is where you are
+ * meant to learn that holding a charge and letting it go at the right moment is
+ * the whole gun. Wind up while it is shut, and spend it the instant it is not.
+ */
+export function coreOpen(boss) {
+  const shutter = boss?.def?.shutter;
+  if (!shutter) return true;
+  return boss.age % shutter.every < shutter.open;
+}
+
 /** Is there anybody left flying? */
 export function anyAlive(state) {
   return state.ships.some((s) => s.alive);

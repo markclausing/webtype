@@ -11,15 +11,18 @@
 // are, on every run, for everybody.
 
 import { readFileSync } from 'node:fs';
-import { createRun, formatScore, hashState, stageLabel } from '../src/game/state.js';
+import {
+  coreOpen, createRun, formatScore, hashState, stageLabel,
+} from '../src/game/state.js';
 import { step } from '../src/game/sim.js';
 import { STAGES, STAGE_KEYS, loadStage, loopOf, stageIndex } from '../src/game/stages.js';
 import { STEP, gapAt, inRock, surfaceAt } from '../src/game/terrain.js';
-import { FOES, FOE_KEYS } from '../src/game/foes.js';
+import { FOES, FOE_KEYS, arrived } from '../src/game/foes.js';
 import { chargeLevel, stepShot } from '../src/game/weapons.js';
 import { demoMask } from '../src/demo.js';
 import {
-  BTN, CHARGE_FULL, CHARGE_MIN, CHARGE_PIERCE, DROP_R, FLAK_SPEED, HULL_MAX,
+  BTN, CHARGE_FULL, CHARGE_MIN, CHARGE_PIERCE, DIVER_HOLD, DIVER_RISE, DROP_R,
+  FLAK_SPEED, HULL_MAX,
   INVULN_TICKS, LOOP_QUIET, MAX_MISSILES, MAX_SPEEDUPS, MINE_ARM, MINE_TRIGGER,
   POD_MAX_LEVEL, QUIET_FLOOR, QUIET_RUN, SEEKER_CORRECTIONS, SEEKER_SPEED, SHIP_R,
   SKILL_LEVELS, TICK_RATE, VIEW_H, VIEW_W,
@@ -719,6 +722,7 @@ function loose(kind, opts = {}) {
     chain: false,
     dieIn: 0,
     dying: false,
+    z: def.deep ? 1 : 0,
   });
   return state;
 }
@@ -865,6 +869,176 @@ function loose(kind, opts = {}) {
   check(angles.length > 6, `an orb throws out ${angles.length} shots in a second and a half`);
   const spread = new Set(angles.map((a) => Math.round(a * 4))).size;
   check(spread > 3, `and they go in ${spread} different directions rather than at you`);
+}
+
+// --- Out of the depth --------------------------------------------------------
+
+console.log('\nThe third dimension:');
+{
+  // A diver is the one thing that does not arrive from the right-hand edge, and
+  // the whole of what makes that fair is the two gates: it cannot be touched
+  // while it is coming up, and it cannot be killed once it is going back down.
+  const state = loose('diver');
+  const diver = state.foes[0];
+  diver.hp = 40;
+  check(!arrived(diver), 'a diver starts behind the plane of play');
+
+  const shoot = (dmg = 20) => {
+    state.shots.push({
+      id: state.nextId++,
+      kind: 'pellet',
+      seat: 0,
+      x: diver.x,
+      y: diver.y,
+      vx: 0,
+      vy: 0,
+      r: 26,
+      dmg,
+      life: 4,
+      pierce: false,
+      hit: null,
+    });
+    const was = diver.hp;
+    step(state, [0, 0]);
+    return was - diver.hp;
+  };
+
+  check(shoot() === 0, 'and nothing can touch it down there');
+  const ship = state.ships[0];
+  ship.hull = 9;
+  ship.invuln = 0;
+  ship.x = diver.x;
+  ship.y = diver.y;
+  step(state, [0, 0]);
+  check(ship.hull === 9, 'nor can you fly into it');
+
+  for (let t = 0; t < DIVER_RISE + 4; t++) {
+    ship.x = diver.x - 150;
+    step(state, [0, 0]);
+  }
+  check(arrived(diver), `it surfaces after about ${Math.round(DIVER_RISE / 60 * 10) / 10}s`);
+  check(shoot() > 0, 'and then it can be shot like anything else');
+
+  for (let t = 0; t < DIVER_HOLD + 8; t++) step(state, [0, 0]);
+  check(!arrived(diver), 'it goes back down on its own');
+  check(shoot() === 0, 'and cannot be killed on the way out');
+
+  const score = state.score;
+  for (let t = 0; t < 120; t++) step(state, [0, 0]);
+  check(!state.foes.includes(diver), 'a diver you left alone is simply gone');
+  check(state.score === score, 'and it is worth nothing, which is what it cost you');
+}
+{
+  // It must not shoot from down there either: a shot from a thing that cannot
+  // be shot back at would be the worst of both.
+  const state = loose('diver');
+  let early = 0;
+  for (let t = 0; t < DIVER_RISE - 2; t++) {
+    step(state, [0, 0]);
+    early += state.events.filter((e) => e.type === 'foefire').length;
+  }
+  check(early === 0, 'and it holds its fire until it is actually here');
+  let later = 0;
+  for (let t = 0; t < DIVER_HOLD; t++) {
+    step(state, [0, 0]);
+    later += state.events.filter((e) => e.type === 'foefire').length;
+  }
+  check(later > 0, `then it fires ${later} volleys in its window`);
+}
+{
+  // The stage that was made room for it. Everywhere else the rock decides where
+  // you may be; in the shoal it barely counts.
+  const gaps = STAGES.map((_, i) => {
+    const t = loadStage(i).terrain;
+    let least = Infinity;
+    for (let j = 0; j < t.count; j++) least = Math.min(least, t.floor[j] - t.ceil[j]);
+    return least;
+  });
+  const shoal = STAGE_KEYS.indexOf('shoal');
+  check(gaps[shoal] === Math.max(...gaps),
+    `the shoal is the most open stage: ${gaps.map((g) => Math.round(g)).join(', ')}`);
+  check(gaps[shoal] > VIEW_H * 0.75,
+    'and open enough that up and down is barely constrained at all');
+}
+
+// --- Every boss belongs to its stage -----------------------------------------
+
+console.log('\nBosses:');
+{
+  // Each of the five does something that only its own stage does. Written down
+  // as a table rather than asserted one at a time, because the point is that
+  // every stage has one rather than that any particular boss has any particular
+  // trick.
+  const marks = {
+    approach: (b) => !!b.shutter,
+    spine: (b) => !!b.tailHurts,
+    foundry: (b) => b.spawns?.on === 'rock',
+    shoal: (b) => b.spawns?.kind === 'diver',
+    core: (b) => !!b.shutter && !!b.spawns,
+  };
+  for (const stage of STAGES) {
+    check(marks[stage.key](stage.boss),
+      `${stage.boss.name} carries something of ${stage.name.toLowerCase()}`);
+  }
+}
+{
+  // The shutter, which is the fight rather than a decoration: a shot at a closed
+  // core is a shot at armour.
+  // Flown to the end of stage one with a bottomless hull, because this is a
+  // test about the shutter and not about whether the autopilot can get there.
+  const state = createRun({ seed: 3, skill: 'easy' });
+  while (!state.boss && state.tick < MAX) {
+    for (const ship of state.ships) {
+      ship.hull = 99;
+      ship.invuln = 1;
+    }
+    step(state, [demoMask(state, 0), 0]);
+  }
+  const boss = state.boss;
+  check(!!boss && !!boss.def.shutter, 'the gatekeeper has a shutter');
+
+  const hitCore = () => {
+    const before = boss.hp;
+    state.shots.push({
+      id: state.nextId++,
+      kind: 'pellet',
+      seat: 0,
+      x: boss.x + boss.def.core.dx,
+      y: boss.y + boss.def.core.dy,
+      vx: 0,
+      vy: 0,
+      r: 3,
+      dmg: 9,
+      life: 3,
+      pierce: false,
+      hit: null,
+    });
+    step(state, [0, 0]);
+    return before - boss.hp;
+  };
+
+  const wait = (want) => {
+    for (let t = 0; t < 600 && coreOpen(boss) !== want; t++) {
+      for (const ship of state.ships) ship.invuln = 2;
+      step(state, [0, 0]);
+    }
+  };
+  wait(true);
+  const open = hitCore();
+  wait(false);
+  const shut = hitCore();
+  check(open > shut, `an open core takes ${open} where a shut one takes ${shut}`);
+  check(shut > 0, 'and a shut one is armour rather than a wall you cannot dent');
+
+  // It has to spend a fair share of its time open, or the fight is a wait.
+  let opened = 0;
+  for (let t = 0; t < boss.def.shutter.every * 2; t++) {
+    for (const ship of state.ships) ship.invuln = 2;
+    step(state, [0, 0]);
+    if (coreOpen(boss)) opened++;
+  }
+  const share = opened / (boss.def.shutter.every * 2);
+  check(share > 0.3 && share < 0.6, `it is open ${Math.round(share * 100)}% of the time`);
 }
 
 // --- The score board ---------------------------------------------------------

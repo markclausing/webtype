@@ -20,8 +20,8 @@ import { chargeLevel, stepShot } from '../src/game/weapons.js';
 import { demoMask } from '../src/demo.js';
 import {
   BTN, CHARGE_FULL, CHARGE_MIN, CHARGE_PIERCE, DROP_R, HULL_MAX, INVULN_TICKS,
-  MAX_MISSILES, MAX_SPEEDUPS, POD_MAX_LEVEL, SHIP_R, SKILL_LEVELS, TICK_RATE,
-  VIEW_H, VIEW_W,
+  LOOP_QUIET, MAX_MISSILES, MAX_SPEEDUPS, POD_MAX_LEVEL, QUIET_FLOOR, QUIET_RUN,
+  SHIP_R, SKILL_LEVELS, TICK_RATE, VIEW_H, VIEW_W,
 } from '../src/constants.js';
 import {
   Highscores, LEVELS, cleanEntry, levelFor, levelOf, merge, partsOf, placeOf, qualifies,
@@ -128,8 +128,77 @@ check(STAGE_KEYS.length === 5, 'there are five stages');
 check(stageIndex(7) === 2 && loopOf(7) === 1, 'stage 7 is the third stage, second time round');
 check(stageLabel(0) === '1' && stageLabel(7) === '3-2', 'stages are labelled the arcade way');
 
-// A stage is built once and handed out, so two machines get the identical rock.
-check(loadStage(0) === loadStage(5), 'a stage is cached, not rebuilt per lap');
+// A stage is built once and handed out, so two machines get the identical stage.
+check(loadStage(0) === loadStage(0), 'a stage is built once and handed out');
+// ...but the second time round the five it is a busier stage, and the rock it is
+// flown through is the same rock. Both halves matter: the corridor you learned
+// is still the corridor, and what is in it is not what was in it.
+check(loadStage(0) !== loadStage(5), 'a later lap of the same stage is a different stage');
+check(loadStage(0).terrain === loadStage(5).terrain, 'and it is flown through the same rock');
+
+// --- The ramp, and the laps --------------------------------------------------
+
+console.log('\nGetting harder:');
+{
+  // Every stage opens with something you can read and then gets busy. Measured
+  // rather than asserted about: how many waves are written into the opening
+  // stretch against how many are written into the same length after it.
+  for (let n = 0; n < STAGES.length; n++) {
+    const stage = loadStage(n);
+    const foes = stage.script.filter((e) => e.kind !== 'gift');
+    const opening = foes.filter((e) => e.at < QUIET_RUN).length;
+    const next = foes.filter((e) => e.at >= QUIET_RUN && e.at < QUIET_RUN * 2).length;
+    check(next > opening,
+      `${stage.name}: the corridor gets busier past the opening (${opening} then ${next})`);
+  }
+}
+{
+  // The run has to keep getting harder for ever, because something has to stop
+  // the best player in the world. Every lap of the five: more waves, and a
+  // shorter quiet opening, with no ceiling on either.
+  const waves = [];
+  const quiet = [];
+  for (let lap = 0; lap < 8; lap++) {
+    const stage = loadStage(lap * STAGES.length);
+    waves.push(stage.script.length);
+    quiet.push(Math.min(...stage.script.filter((e) => e.kind !== 'gift').map((e) => e.at)));
+  }
+  let climbing = true;
+  for (let i = 1; i < waves.length; i++) if (waves[i] <= waves[i - 1]) climbing = false;
+  check(climbing, `each lap of the approach is busier than the last: ${waves.join(' → ')}`);
+  check(quiet[7] >= 0, 'and there is always something to fly at');
+
+  // Reinforcements are spread through the stage rather than piled at the front,
+  // which is the whole reason reinforce() counts the way it does.
+  const base = loadStage(0).script.filter((e) => e.kind !== 'gift');
+  const later = loadStage(10).script.filter((e) => e.kind !== 'gift');
+  const half = loadStage(0).length / 2;
+  const front = (list) => list.filter((e) => e.at < half).length / list.length;
+  check(Math.abs(front(base) - front(later)) < 0.1,
+    'the extra waves are spread through the stage, not piled into the first half');
+}
+{
+  // The one thing a later lap must never hand out more of. Hull is the currency
+  // of this game; a lap with two of every repair in it would be an easier lap.
+  for (const lap of [0, 1, 3, 6]) {
+    const before = loadStage(0).script.filter((e) => e.kind === 'gift');
+    const now = loadStage(lap * STAGES.length).script.filter((e) => e.kind === 'gift');
+    check(now.length === before.length,
+      `lap ${lap + 1} of the approach has the same ${now.length} pickups in it`);
+    check(now.filter((g) => g.give === 'heal').length
+      === before.filter((g) => g.give === 'heal').length,
+      `lap ${lap + 1} has no extra repairs`);
+  }
+}
+{
+  // The quiet opening shrinks, but never to nothing: arriving somewhere and
+  // being shot before the stage name has faded is not difficulty.
+  const opening = (lap) => Math.max(QUIET_FLOOR, QUIET_RUN - lap * LOOP_QUIET);
+  check(opening(0) > opening(3) && opening(20) === QUIET_FLOOR,
+    `the opening shrinks from ${opening(0)} to ${QUIET_FLOOR} and stops there`);
+  const late = loadStage(50).script.filter((e) => e.kind !== 'gift');
+  check(Math.min(...late.map((e) => e.at)) > 0, 'even on the eleventh lap nothing starts at zero');
+}
 
 // --- Determinism -------------------------------------------------------------
 

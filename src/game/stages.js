@@ -16,7 +16,9 @@
  * LOOP_HP and friends in constants.js for what "harder" is allowed to mean.
  */
 
-import { SCROLL_SPEED, VIEW_H, VIEW_W } from '../constants.js';
+import {
+  LOOP_CROWD, LOOP_QUIET, QUIET_FLOOR, QUIET_RUN, SCROLL_SPEED, VIEW_H, VIEW_W,
+} from '../constants.js';
 import { buildTerrain } from './terrain.js';
 
 /** How far off the right-hand edge something is created. */
@@ -64,6 +66,19 @@ const s1 = [
   ...wave(3060, 'turret', { y: 'ceil' }),
   ...wave(3120, 'turret', { y: 'floor' }),
   ...wave(3260, 'swoop', { y: 135, n: 5, spacing: 40 }),
+  // Past the opening the approach stops being a demonstration and starts being
+  // a stage. Everything below sits in the back two thirds on purpose.
+  ...wave(1240, 'drone', { y: 190, n: 4, spacing: 32 }),
+  ...wave(1600, 'drone', { y: 150, n: 4, spacing: 30 }),
+  ...wave(1860, 'swoop', { y: 180, n: 3, spacing: 44 }),
+  ...wave(2100, 'mine', { y: 150, n: 4, spacing: 40 }),
+  ...wave(2380, 'drone', { y: 100, n: 5, spacing: 28 }),
+  ...wave(2560, 'swoop', { y: 70, n: 4, spacing: 36 }),
+  ...wave(2700, 'drone', { y: 185, n: 5, spacing: 28 }),
+  ...wave(2960, 'mine', { y: 120, n: 5, spacing: 34 }),
+  ...wave(3160, 'swoop', { y: 100, n: 4, spacing: 32 }),
+  ...wave(3340, 'drone', { y: 170, n: 6, spacing: 26 }),
+  ...wave(3420, 'drone', { y: 95, n: 6, spacing: 26 }),
 ];
 
 const s2 = [
@@ -90,6 +105,15 @@ const s2 = [
   ...wave(3080, 'mine', { y: 135, n: 7, spacing: 36 }),
   ...wave(3320, 'walker', { y: 'floor' }),
   ...wave(3400, 'turret', { y: 'ceil' }),
+  ...wave(1100, 'mine', { y: 150, n: 4, spacing: 36 }),
+  ...wave(1560, 'swoop', { y: 160, n: 4, spacing: 38 }),
+  ...wave(1780, 'drone', { y: 110, n: 5, spacing: 28 }),
+  ...wave(2060, 'mine', { y: 170, n: 5, spacing: 34 }),
+  ...wave(2280, 'drone', { y: 120, n: 6, spacing: 26 }),
+  ...wave(2700, 'swoop', { y: 150, n: 5, spacing: 34 }),
+  ...wave(2980, 'drone', { y: 100, n: 6, spacing: 26 }),
+  ...wave(3200, 'swoop', { y: 180, n: 5, spacing: 30 }),
+  ...wave(3440, 'mine', { y: 130, n: 6, spacing: 30 }),
 ];
 
 const s3 = [
@@ -116,6 +140,17 @@ const s3 = [
   ...wave(3240, 'drone', { y: 135, n: 8, spacing: 28 }),
   ...wave(3460, 'turret', { y: 'floor' }),
   ...wave(3520, 'turret', { y: 'ceil' }),
+  ...wave(1040, 'swoop', { y: 150, n: 4, spacing: 34 }),
+  ...wave(1280, 'mine', { y: 100, n: 4, spacing: 34 }),
+  ...wave(1500, 'drone', { y: 180, n: 5, spacing: 28 }),
+  ...wave(1780, 'swoop', { y: 120, n: 5, spacing: 32 }),
+  ...wave(2000, 'drone', { y: 170, n: 6, spacing: 26 }),
+  ...wave(2260, 'mine', { y: 110, n: 5, spacing: 32 }),
+  ...wave(2620, 'drone', { y: 150, n: 7, spacing: 24 }),
+  ...wave(2880, 'swoop', { y: 90, n: 5, spacing: 30 }),
+  ...wave(3140, 'mine', { y: 140, n: 6, spacing: 30 }),
+  ...wave(3380, 'drone', { y: 110, n: 7, spacing: 24 }),
+  ...wave(3560, 'swoop', { y: 160, n: 6, spacing: 28 }),
 ];
 
 const s4 = [
@@ -138,6 +173,16 @@ const s4 = [
   ...wave(3040, 'drone', { y: 135, n: 10, spacing: 24 }),
   ...wave(3300, 'swoop', { y: 135, n: 8, spacing: 30 }),
   ...wave(3560, 'carrier', { y: 90, give: 'speed' }),
+  ...wave(1180, 'drone', { y: 150, n: 6, spacing: 26 }),
+  ...wave(1420, 'swoop', { y: 110, n: 5, spacing: 32 }),
+  ...wave(1900, 'drone', { y: 130, n: 7, spacing: 24 }),
+  ...wave(2060, 'swoop', { y: 190, n: 5, spacing: 30 }),
+  ...wave(2460, 'mine', { y: 120, n: 6, spacing: 30 }),
+  ...wave(2760, 'drone', { y: 170, n: 7, spacing: 24 }),
+  ...wave(2980, 'swoop', { y: 100, n: 6, spacing: 28 }),
+  ...wave(3180, 'mine', { y: 140, n: 7, spacing: 28 }),
+  ...wave(3420, 'drone', { y: 110, n: 8, spacing: 22 }),
+  ...wave(3640, 'swoop', { y: 160, n: 6, spacing: 26 }),
 ];
 
 const s5 = [
@@ -165,6 +210,18 @@ const s5 = [
   ...wave(3220, 'swoop', { y: 135, n: 10, spacing: 26 }),
   ...wave(3480, 'walker', { y: 'floor' }),
   ...wave(3540, 'walker', { y: 'ceil' }),
+  ...wave(1060, 'swoop', { y: 150, n: 5, spacing: 30 }),
+  ...wave(1300, 'drone', { y: 110, n: 6, spacing: 24 }),
+  ...wave(1680, 'mine', { y: 140, n: 6, spacing: 28 }),
+  ...wave(2100, 'swoop', { y: 120, n: 6, spacing: 28 }),
+  ...wave(2200, 'drone', { y: 180, n: 7, spacing: 24 }),
+  ...wave(2460, 'mine', { y: 150, n: 7, spacing: 26 }),
+  ...wave(2680, 'swoop', { y: 100, n: 6, spacing: 26 }),
+  ...wave(2880, 'drone', { y: 160, n: 8, spacing: 22 }),
+  ...wave(3100, 'mine', { y: 130, n: 7, spacing: 26 }),
+  ...wave(3340, 'drone', { y: 110, n: 8, spacing: 22 }),
+  ...wave(3600, 'swoop', { y: 150, n: 7, spacing: 24 }),
+  ...wave(3700, 'drone', { y: 180, n: 8, spacing: 20 }),
 ];
 
 /**
@@ -450,28 +507,85 @@ function schedule(script) {
     .sort((a, b) => a.trigger - b.trigger);
 }
 
+/**
+ * The same wave, on the other side of the corridor and a little later.
+ *
+ * Used to build the extra copies a later lap flies through. Mirroring rather
+ * than simply repeating matters: the same six drones coming along the ceiling
+ * instead of the floor is a different problem to solve, where a second identical
+ * wave is the same problem twice and reads as padding.
+ */
+function mirror(wave, offset) {
+  const y = wave.y === 'floor' ? 'ceil'
+    : wave.y === 'ceil' ? 'floor'
+      : VIEW_H - wave.y;
+  return { ...wave, at: wave.at + offset, y };
+}
+
+/**
+ * A stage's script with the extra waves a later lap gets.
+ *
+ * Two rules do all the work. Nothing before the quiet mark is touched, so every
+ * stage still opens with something you can read - though the quiet mark itself
+ * shrinks each lap, because the tenth time through the approach nobody needs
+ * showing round. And pickups are never copied: they are the one scarce thing in
+ * the game, and a lap that handed out two of every repair would be an easier
+ * lap rather than a harder one.
+ *
+ * Which waves get copied is spread evenly through what is left rather than
+ * taken from the front - the same trick a line-drawing algorithm uses to put a
+ * fraction of one thing evenly along another - so a lap and a third of a script
+ * is a third more everywhere, not a doubled first act and an untouched second.
+ */
+export function reinforce(script, loop) {
+  if (loop <= 0) return script;
+  const quiet = Math.max(QUIET_FLOOR, QUIET_RUN - loop * LOOP_QUIET);
+  const extra = loop * LOOP_CROWD;
+  const out = [...script];
+  let eligible = 0;
+  for (const wave of script) {
+    if (wave.kind === 'gift' || wave.at < quiet) continue;
+    const copies = Math.floor((eligible + 1) * extra) - Math.floor(eligible * extra);
+    for (let c = 0; c < copies; c++) out.push(mirror(wave, 20 + c * 26));
+    eligible++;
+  }
+  return out;
+}
+
 const cache = new Map();
+const rock = new Map();
 
 /**
  * A stage, ready to play: its corridor sampled, its script sorted.
  *
- * Pure and cached by key, so every machine gets the identical corridor and no
- * machine builds it twice. Nothing in here touches the run's state or its
- * random numbers.
+ * Pure and cached, so every machine gets the identical stage and no machine
+ * builds it twice. Cached per lap as well as per stage, because the script is
+ * not the same on the second time round - see reinforce(). The corridor is,
+ * which is why the terrain has a cache of its own: the rock never changes, only
+ * what is flying about in front of it.
+ *
+ * Nothing in here touches the run's state or its random numbers.
  */
 export function loadStage(n) {
-  const key = STAGE_KEYS[stageIndex(n)];
+  const index = stageIndex(n);
+  const loop = loopOf(n);
+  const name = STAGE_KEYS[index];
+  const key = `${name}:${loop}`;
   let found = cache.get(key);
   if (!found) {
-    const def = STAGES[stageIndex(n)];
+    const def = STAGES[index];
+    if (!rock.has(name)) {
+      rock.set(name, buildTerrain(def.frames, def.length + 900, def.rough));
+    }
     found = {
       ...def,
-      terrain: buildTerrain(def.frames, def.length + 900, def.rough),
+      loop,
+      terrain: rock.get(name),
       // The boss arena is the last stretch, past everything in the script. The
       // corridor keeps scrolling until the boss is dead, so this is where it
       // stops rather than where the stage ends.
       bossAt: def.length,
-      script: schedule(def.script),
+      script: schedule(reinforce(def.script, loop)),
       scroll: SCROLL_SPEED * def.speed,
     };
     cache.set(key, found);

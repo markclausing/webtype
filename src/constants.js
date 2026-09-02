@@ -239,7 +239,7 @@ export const SHIP_PRESETS = [
  */
 export const SKILL_LEVELS = {
   easy: {
-    key: 'easy', label: 'EASY', hull: 10, rate: 1.4, flak: 0.82, foeHp: 0.85,
+    key: 'easy', label: 'EASY', hull: 10, rate: 1.15, flak: 0.94, foeHp: 0.9,
   },
   normal: {
     key: 'normal', label: 'NORMAL', hull: 7, rate: 1, flak: 1, foeHp: 1,
@@ -250,13 +250,53 @@ export const SKILL_LEVELS = {
 };
 
 /**
+ * How long the quiet bit at the start of a stage lasts, in world units.
+ *
+ * Every stage opens with something you can read: a wave or two with room around
+ * them, so that arriving somewhere new is a chance to see what the place is
+ * rather than an ambush. Past this mark the stage is allowed to get busy, and it
+ * does - the scripts put most of their weight in the back two thirds.
+ *
+ * At the usual scroll speed this is about eighteen seconds. It shrinks by
+ * LOOP_QUIET every time round the five stages, because the tenth time you fly
+ * through the approach you do not need to be shown it again.
+ */
+export const QUIET_RUN = 900;
+export const LOOP_QUIET = 220;
+/** ...but never to nothing. There is always a moment to get your bearings. */
+export const QUIET_FLOOR = 240;
+
+/**
  * What each lap of the five stages adds, once you are round them all.
  *
  * The run does not stop at the last stage; it starts again harder, which is how
  * an arcade game of this kind decides who is best rather than who has finished.
- * Held down deliberately: a loop that doubled everything would make lap three
- * unplayable for reasons of arithmetic rather than of skill.
+ * There is no ceiling on any of this on purpose: something has to eventually
+ * stop the best player in the world, and it is these four numbers.
+ *
+ * Which of them does the work matters. Health is the least interesting way to
+ * make a game harder - it makes a fight longer rather than sharper - so it
+ * climbs the most slowly. What really raises the pressure is how much is coming
+ * at you (LOOP_CROWD), how often it fires (LOOP_RATE) and how little time you
+ * have to read a shot once it has (LOOP_FLAK). Measured against the game's own
+ * autopilot, the old numbers left it alive for twenty minutes and eleven stages
+ * on EASY, which is not a difficulty curve, it is a plateau.
  */
-export const LOOP_HP = 0.45; // extra enemy health per completed lap
-export const LOOP_RATE = 0.14; // and how much faster the corridor shoots
-export const LOOP_SCORE = 0.25; // everything is worth this much more, too
+export const LOOP_HP = 0.4; // extra enemy health per completed lap
+export const LOOP_RATE = 0.2; // and how much faster the corridor shoots
+export const LOOP_FLAK = 0.08; // and how much faster what it fires arrives
+export const LOOP_SCORE = 0.3; // everything is worth this much more, too
+
+/**
+ * How much of a stage's script is flown a second time on each later lap.
+ *
+ * A third of it per lap, spread evenly through the stage rather than bunched,
+ * and mirrored across the corridor so that the second copy is a different
+ * problem rather than the same one twice. Past three laps it is spawning every
+ * wave twice over; past six, three times.
+ *
+ * Pickups are never copied. They are the one thing in the game that is scarce on
+ * purpose, and a lap that handed out two of every repair would be an easier lap,
+ * not a harder one.
+ */
+export const LOOP_CROWD = 0.34;

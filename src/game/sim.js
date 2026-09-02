@@ -26,7 +26,7 @@ import {
   BTN, CLEAR_TICKS, CULL_LEFT, CULL_RIGHT, DEATH_TICKS, DMG_BEAM, DMG_FLAK, DMG_FOE,
   DMG_WALL, DROP_DRIFT, DROP_LIFE, DROP_POINTS, DROP_R, DT, EDGE_TOP, EDGE_X,
   FIRE_EVERY, FLAK_R, FLAK_SPEED, HEAL_AMOUNT, HULL_BONUS, HULL_MAX, INVULN_TICKS,
-  LOOP_HP, LOOP_RATE, LOOP_SCORE, MAX_MISSILES, MAX_SPEEDUPS, MISSILE_EVERY,
+  LOOP_FLAK, LOOP_HP, LOOP_RATE, LOOP_SCORE, MAX_MISSILES, MAX_SPEEDUPS, MISSILE_EVERY,
   POD_CONTACT_DMG, POD_CONTACT_EVERY, POD_FIRE_EVERY, POD_LAUNCH_SPEED, POD_MAX_LEVEL,
   POD_FOLLOW, POD_NOSE, POD_R, POD_RECALL_SPEED, POD_TAIL, SHIP_R, SHIP_SPEED,
   SPEED_STEP, STAGE_BONUS, VIEW_H, VIEW_W, WALL_KICK,
@@ -379,8 +379,11 @@ function moveFoe(state, foe) {
  * can see happening.
  */
 function volley(state, from, aim) {
-  const { skill } = difficultyOf(state);
-  const speed = FLAK_SPEED * skill.flak;
+  const { skill, loop } = difficultyOf(state);
+  // Later laps do not aim better, they arrive sooner. Less time to read a shot
+  // is a difficulty you can see coming; a shot that quietly leads you better
+  // than it did last lap is a difficulty that feels like cheating.
+  const speed = FLAK_SPEED * skill.flak * (1 + loop * LOOP_FLAK);
   const to = target(state, from);
   const base = to ? Math.atan2(to.y - from.y, to.x - from.x) : Math.PI;
   const n = Math.max(1, aim.n || 1);

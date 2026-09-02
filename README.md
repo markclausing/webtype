@@ -90,10 +90,55 @@ playing and one of them watching is not the game either of them started.
 
 ![The Gatekeeper, at the end of the first stage](docs/screenshots/boss.png)
 
+## What is coming the other way
+
+Most of it is a hot orange bead that flies where it was pointed. Three things in
+the corridor carry something better, and each of them asks a different question.
+
+**The carrier fires seekers.** A seeker is *slower* than a plain shot and it is
+allowed to change its mind three times. That is the whole weapon: a fast homing
+missile is not a puzzle, it is a countdown — there is nothing to do about it but
+be somewhere else already. A slow one that corrects three times is a
+conversation. It locks on, you move, it corrects, you move again, and on the
+fourth move it has nothing left and sails past. It carries one white pip for each
+correction it still has, so how much argument it has left in it is something you
+can read rather than something you have to count.
+
+**The walker lays mines.** It does not shoot at you at all: it crawls up the
+corridor against the scroll leaving mines behind it, and the corridor brings them
+back to you. A mine arms visibly before it is dangerous — a hazard that is lethal
+the instant it exists cannot be planned around by somebody already committed to
+that piece of air — and once armed it draws the ring inside which it will go off.
+It throws its shrapnel outwards, so the answer is distance rather than a
+direction. It can also be shot, and the pod grinds a line of them away for
+nothing, which is one of the nicer things the pod does.
+
+**The orb sprays.** Its shots come out at an angle taken from how long it has
+been alive rather than from where you are, so the spray turns at a steady rate
+and sweeps *through* you instead of following you. It is the opposite of an aimed
+shot, and standing still is the only way to be hit by it.
+
+The bosses have them too: the Crucible builds a minefield around itself while the
+corridor is stopped, the Shoalmother sends seekers, the Vertebra sweeps, and the
+Core does all three.
+
 ## The stages
 
 Five of them — the approach, the spine, the foundry, the shoal and the core — and
-then it starts again harder. Everything in them is written down: every wave,
+then it starts again harder, for ever, because something has to eventually stop
+the best player in the world.
+
+Each stage opens with a wave or two with room around them and then fills up:
+about eighteen seconds of air, and after that most of what the stage has. Every
+lap of the five flies half the script again on top of that, mirrored across the
+corridor so the second copy is a different problem rather than the same one
+twice, and the quiet opening shrinks each lap. Firing rate and projectile speed
+climb with it; enemy health climbs slowest, because more health makes a fight
+longer rather than sharper. Measured with the game's own autopilot over five
+seeds, hits taken per seventy-five seconds go 3.8 on stage 1-1, 7.0 on 1-2, 13.0
+on 1-3 and 15.0 on 1-4.
+
+Repairs are the one thing a later lap never hands out more of. Everything in them is written down: every wave,
 every turret, every crystal, at a fixed mark in the corridor. That is a design
 decision rather than a shortcut. A shooter of this kind is *learned*: you die at
 the same place three times and the fourth time you are ready for it, and none of

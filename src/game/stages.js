@@ -79,6 +79,18 @@ const s1 = [
   ...wave(3160, 'swoop', { y: 100, n: 4, spacing: 32 }),
   ...wave(3340, 'drone', { y: 170, n: 6, spacing: 26 }),
   ...wave(3420, 'drone', { y: 95, n: 6, spacing: 26 }),
+  // A second pass over the same corridor. The opening keeps its air; everything
+  // else gets company.
+  ...wave(560, 'drone', { y: 120, n: 3, spacing: 34 }),
+  ...wave(1060, 'swoop', { y: 120, n: 3, spacing: 40 }),
+  ...wave(1400, 'drone', { y: 70, n: 4, spacing: 30 }),
+  ...wave(1700, 'mine', { y: 200, n: 4, spacing: 36 }),
+  ...wave(2000, 'drone', { y: 60, n: 5, spacing: 28 }),
+  ...wave(2240, 'swoop', { y: 150, n: 4, spacing: 34 }),
+  ...wave(2480, 'drone', { y: 210, n: 5, spacing: 26 }),
+  ...wave(2860, 'swoop', { y: 190, n: 5, spacing: 30 }),
+  ...wave(3080, 'drone', { y: 130, n: 6, spacing: 26 }),
+  ...wave(3280, 'mine', { y: 190, n: 5, spacing: 30 }),
 ];
 
 const s2 = [
@@ -114,6 +126,15 @@ const s2 = [
   ...wave(2980, 'drone', { y: 100, n: 6, spacing: 26 }),
   ...wave(3200, 'swoop', { y: 180, n: 5, spacing: 30 }),
   ...wave(3440, 'mine', { y: 130, n: 6, spacing: 30 }),
+  ...wave(700, 'drone', { y: 140, n: 3, spacing: 32 }),
+  ...wave(1320, 'swoop', { y: 130, n: 4, spacing: 34 }),
+  ...wave(1640, 'drone', { y: 170, n: 5, spacing: 28 }),
+  ...wave(1960, 'swoop', { y: 100, n: 4, spacing: 32 }),
+  ...wave(2200, 'mine', { y: 110, n: 5, spacing: 30 }),
+  ...wave(2480, 'drone', { y: 160, n: 6, spacing: 26 }),
+  ...wave(2820, 'mine', { y: 150, n: 5, spacing: 30 }),
+  ...wave(3120, 'swoop', { y: 120, n: 5, spacing: 28 }),
+  ...wave(3360, 'drone', { y: 170, n: 6, spacing: 24 }),
 ];
 
 const s3 = [
@@ -151,6 +172,16 @@ const s3 = [
   ...wave(3140, 'mine', { y: 140, n: 6, spacing: 30 }),
   ...wave(3380, 'drone', { y: 110, n: 7, spacing: 24 }),
   ...wave(3560, 'swoop', { y: 160, n: 6, spacing: 28 }),
+  ...wave(700, 'drone', { y: 130, n: 4, spacing: 30 }),
+  ...wave(1180, 'swoop', { y: 170, n: 4, spacing: 32 }),
+  ...wave(1400, 'drone', { y: 120, n: 5, spacing: 28 }),
+  ...wave(1660, 'mine', { y: 150, n: 5, spacing: 30 }),
+  ...wave(1960, 'swoop', { y: 200, n: 5, spacing: 30 }),
+  ...wave(2400, 'drone', { y: 130, n: 6, spacing: 26 }),
+  ...wave(2760, 'mine', { y: 170, n: 5, spacing: 28 }),
+  ...wave(3020, 'swoop', { y: 130, n: 6, spacing: 28 }),
+  ...wave(3280, 'drone', { y: 180, n: 7, spacing: 24 }),
+  ...wave(3480, 'mine', { y: 120, n: 6, spacing: 28 }),
 ];
 
 const s4 = [
@@ -183,6 +214,16 @@ const s4 = [
   ...wave(3180, 'mine', { y: 140, n: 7, spacing: 28 }),
   ...wave(3420, 'drone', { y: 110, n: 8, spacing: 22 }),
   ...wave(3640, 'swoop', { y: 160, n: 6, spacing: 26 }),
+  ...wave(760, 'swoop', { y: 140, n: 4, spacing: 34 }),
+  ...wave(1240, 'mine', { y: 110, n: 5, spacing: 30 }),
+  ...wave(1600, 'drone', { y: 160, n: 6, spacing: 26 }),
+  ...wave(1780, 'swoop', { y: 90, n: 5, spacing: 30 }),
+  ...wave(2140, 'drone', { y: 200, n: 6, spacing: 26 }),
+  ...wave(2380, 'swoop', { y: 140, n: 5, spacing: 30 }),
+  ...wave(2680, 'mine', { y: 160, n: 6, spacing: 28 }),
+  ...wave(2900, 'drone', { y: 90, n: 7, spacing: 24 }),
+  ...wave(3260, 'mine', { y: 150, n: 6, spacing: 28 }),
+  ...wave(3520, 'drone', { y: 190, n: 8, spacing: 22 }),
 ];
 
 const s5 = [
@@ -222,6 +263,18 @@ const s5 = [
   ...wave(3340, 'drone', { y: 110, n: 8, spacing: 22 }),
   ...wave(3600, 'swoop', { y: 150, n: 7, spacing: 24 }),
   ...wave(3700, 'drone', { y: 180, n: 8, spacing: 20 }),
+  ...wave(620, 'drone', { y: 140, n: 4, spacing: 28 }),
+  ...wave(1140, 'swoop', { y: 170, n: 5, spacing: 30 }),
+  ...wave(1440, 'drone', { y: 150, n: 6, spacing: 24 }),
+  ...wave(1880, 'swoop', { y: 130, n: 5, spacing: 28 }),
+  ...wave(2020, 'mine', { y: 100, n: 6, spacing: 26 }),
+  ...wave(2340, 'drone', { y: 140, n: 7, spacing: 24 }),
+  ...wave(2600, 'swoop', { y: 180, n: 6, spacing: 26 }),
+  ...wave(2780, 'mine', { y: 120, n: 6, spacing: 26 }),
+  ...wave(3040, 'drone', { y: 190, n: 8, spacing: 22 }),
+  ...wave(3260, 'mine', { y: 150, n: 7, spacing: 24 }),
+  ...wave(3480, 'swoop', { y: 110, n: 7, spacing: 24 }),
+  ...wave(3660, 'drone', { y: 140, n: 8, spacing: 20 }),
 ];
 
 /**
@@ -321,7 +374,7 @@ export const STAGES = [
       glow: '#d3a6ff',
       guns: [
         { dx: -24, dy: 0, every: 58, mode: 'aimed', n: 3, spread: 0.34 },
-        { dx: 0, dy: 0, every: 180, mode: 'ring', n: 12 },
+        { dx: 0, dy: 0, every: 14, mode: 'spiral', n: 2 },
       ],
     },
   },
@@ -369,6 +422,11 @@ export const STAGES = [
         { dx: -40, dy: -44, every: 46, mode: 'aimed', n: 1 },
         { dx: -40, dy: 44, every: 46, mode: 'aimed', n: 1 },
         { dx: -44, dy: 0, every: 128, mode: 'burst', n: 4, spread: 0.5 },
+        // The corridor has stopped for the fight, so what it drops stays where
+        // it was dropped: it builds a minefield around itself and you have to
+        // spend shots clearing a lane through it.
+        { dx: -50, dy: -20, every: 150, mode: 'lay' },
+        { dx: -50, dy: 20, every: 190, mode: 'lay' },
       ],
     },
   },
@@ -413,8 +471,8 @@ export const STAGES = [
       spawns: { kind: 'drone', every: 92, n: 2 },
       guns: [
         { dx: -34, dy: 0, every: 84, mode: 'fan', n: 7, spread: 1.3 },
-        { dx: -34, dy: -30, every: 120, mode: 'aimed', n: 2, spread: 0.24 },
-        { dx: -34, dy: 30, every: 120, mode: 'aimed', n: 2, spread: 0.24 },
+        { dx: -34, dy: -30, every: 128, mode: 'seeker', n: 2, spread: 0.4 },
+        { dx: -34, dy: 30, every: 128, mode: 'seeker', n: 2, spread: 0.4 },
       ],
     },
   },
@@ -464,6 +522,7 @@ export const STAGES = [
         { dx: -44, dy: -40, every: 54, mode: 'aimed', n: 1 },
         { dx: -44, dy: 40, every: 54, mode: 'aimed', n: 1 },
         { dx: -46, dy: 0, every: 190, mode: 'burst', n: 6, spread: 0.7 },
+        { dx: -48, dy: 0, every: 165, mode: 'seeker', n: 3, spread: 0.7 },
       ],
     },
   },

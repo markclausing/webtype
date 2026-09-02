@@ -759,6 +759,36 @@ export class Sfx {
       big ? 0.3 : 0.14);
   }
 
+  /**
+   * A seeker leaving the rack: a rising whoosh, which is the one enemy sound
+   * that has to carry over everything else. It is the only thing in the corridor
+   * that will follow you.
+   */
+  seeker() {
+    if (!this.ready() || !this.allow('seeker', 0.09)) return;
+    const now = this.ctx.currentTime;
+    this.engine.noiseBurst(now, {
+      freq: 500, q: 1.1, dur: 0.4, level: 0.15, sweepTo: 2600,
+    });
+    this.engine.sweep(220, 620, now, 0.35, 'sawtooth', 0.09);
+  }
+
+  /** And a small tick each time it changes its mind. */
+  seekTurn() {
+    if (!this.ready() || !this.allow('seekturn', 0.05)) return;
+    const now = this.ctx.currentTime;
+    this.engine.tone(1450, now, 0.05, 'square', 0.08);
+  }
+
+  /** A mine going down: a dull clunk, deliberately quiet. */
+  mineLaid() {
+    if (!this.ready() || !this.allow('minelaid', 0.08)) return;
+    const now = this.ctx.currentTime;
+    this.engine.noiseBurst(now, {
+      freq: 340, q: 2.2, dur: 0.09, level: 0.1, sweepTo: 130,
+    });
+  }
+
   /** The pod eating a shot. A short, bright ting, so you know it worked. */
   absorb() {
     if (!this.ready() || !this.allow('absorb', 0.05)) return;
@@ -895,6 +925,21 @@ export class Sfx {
           break;
         case 'bounce':
           this.bounce();
+          break;
+        case 'seeker':
+          this.seeker();
+          break;
+        case 'seekturn':
+          this.seekTurn();
+          break;
+        case 'minelaid':
+          this.mineLaid();
+          break;
+        case 'minepop':
+          this.boom(true);
+          break;
+        case 'minekill':
+          this.boom(false);
           break;
         case 'hurt':
           if (e.seat === seat) {

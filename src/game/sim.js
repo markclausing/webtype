@@ -26,9 +26,11 @@ import {
   BTN, CLEAR_TICKS, CULL_LEFT, CULL_RIGHT, DEATH_TICKS, DMG_BEAM, DMG_FLAK, DMG_FOE,
   DMG_WALL, DROP_DRIFT, DROP_LIFE, DROP_POINTS, DROP_R, DT, EDGE_TOP, EDGE_X,
   FIRE_EVERY, FLAK_R, FLAK_SPEED, HEAL_AMOUNT, HULL_BONUS, HULL_MAX, INVULN_TICKS,
-  LOOP_FLAK, LOOP_HP, LOOP_RATE, LOOP_SCORE, MAX_MISSILES, MAX_SPEEDUPS, MISSILE_EVERY,
-  POD_CONTACT_DMG, POD_CONTACT_EVERY, POD_FIRE_EVERY, POD_LAUNCH_SPEED, POD_MAX_LEVEL,
-  POD_FOLLOW, POD_NOSE, POD_R, POD_RECALL_SPEED, POD_TAIL, SHIP_R, SHIP_SPEED,
+  LOOP_FLAK, LOOP_HP, LOOP_RATE, LOOP_SCORE, MAX_MISSILES, MAX_SPEEDUPS, MINE_ARM,
+  MINE_FUSE, MINE_HP, MINE_R, MINE_SHARDS, MINE_TRIGGER, MISSILE_EVERY,
+  POD_CONTACT_DMG, POD_CONTACT_EVERY, POD_FIRE_EVERY, POD_FOLLOW, POD_LAUNCH_SPEED,
+  POD_MAX_LEVEL, POD_NOSE, POD_R, POD_RECALL_SPEED, POD_TAIL, SEEKER_CORRECTIONS,
+  SEEKER_EVERY, SEEKER_LIFE, SEEKER_R, SEEKER_SPEED, SEEKER_TURN, SHIP_R, SHIP_SPEED,
   SPEED_STEP, STAGE_BONUS, VIEW_H, VIEW_W, WALL_KICK,
 } from '../constants.js';
 import { nextRandom } from '../util.js';
@@ -388,7 +390,23 @@ function volley(state, from, aim) {
   const base = to ? Math.atan2(to.y - from.y, to.x - from.x) : Math.PI;
   const n = Math.max(1, aim.n || 1);
 
-  if (aim.mode === 'ring') {
+  if (aim.mode === 'lay') {
+    // Nothing is fired at all. Something is left behind.
+    layMine(state, from);
+  } else if (aim.mode === 'seeker') {
+    for (let i = 0; i < n; i++) {
+      const a = base + (n === 1 ? 0 : (i / (n - 1) - 0.5) * (aim.spread || 0.4) * 2);
+      shootFlak(state, from, a, SEEKER_SPEED * skill.flak, 'seeker');
+    }
+  } else if (aim.mode === 'spiral') {
+    // The angle comes from how long the thing has been alive rather than from
+    // where you are, so the spray turns at a steady rate and sweeps through you
+    // rather than following you. Standing still is the only way to be hit by it.
+    const turn = (from.age || state.tick) * 0.24;
+    for (let i = 0; i < n; i++) {
+      shootFlak(state, from, turn + (i / n) * Math.PI * 2, speed * 0.86);
+    }
+  } else if (aim.mode === 'ring') {
     for (let i = 0; i < n; i++) {
       shootFlak(state, from, (i / n) * Math.PI * 2, speed);
     }
@@ -413,16 +431,58 @@ function volley(state, from, aim) {
   state.events.push({ type: 'foefire', x: from.x, y: from.y });
 }
 
-function shootFlak(state, from, angle, speed) {
+function shootFlak(state, from, angle, speed, kind = 'shot') {
+  const seeking = kind === 'seeker';
   state.flak.push({
     id: state.nextId++,
+    kind,
     x: from.x,
     y: from.y,
     vx: Math.cos(angle) * speed,
     vy: Math.sin(angle) * speed,
-    r: FLAK_R,
-    life: 420,
+    r: seeking ? SEEKER_R : FLAK_R,
+    life: seeking ? SEEKER_LIFE : 420,
+    // How many times it may still change its mind, and when the next one is due.
+    turns: seeking ? SEEKER_CORRECTIONS : 0,
+    turnAt: state.tick + SEEKER_EVERY,
+    hp: 0,
+    arm: 0,
   });
+  if (seeking) state.events.push({ type: 'seeker', x: from.x, y: from.y });
+}
+
+/**
+ * A mine, left where the thing that dropped it was standing.
+ *
+ * It does not move under its own power; the corridor brings it to you, which is
+ * why a walker crawling up the stage against the scroll is the right thing to be
+ * carrying them. It is harmless while it arms, and it can be shot.
+ */
+function layMine(state, from) {
+  state.flak.push({
+    id: state.nextId++,
+    kind: 'mine',
+    x: from.x,
+    y: from.y,
+    vx: 0,
+    vy: 0,
+    r: MINE_R,
+    life: MINE_ARM + MINE_FUSE,
+    turns: 0,
+    turnAt: 0,
+    hp: MINE_HP,
+    arm: MINE_ARM,
+  });
+  state.events.push({ type: 'minelaid', x: from.x, y: from.y });
+}
+
+/** A mine going off: a ring of ordinary shrapnel, so distance is the answer. */
+function popMine(state, mine) {
+  mine.dead = true;
+  for (let i = 0; i < MINE_SHARDS; i++) {
+    shootFlak(state, mine, (i / MINE_SHARDS) * Math.PI * 2, FLAK_SPEED * 0.78);
+  }
+  state.events.push({ type: 'minepop', x: mine.x, y: mine.y });
 }
 
 // --- The boss ----------------------------------------------------------------
@@ -522,12 +582,35 @@ function stepFlak(state) {
   const terrain = state.stage.terrain;
   for (const f of state.flak) {
     f.life--;
+    if (f.arm > 0) f.arm--;
+
+    // A seeker turns towards whoever is nearest, by a limited amount, a limited
+    // number of times. Between corrections it flies dead straight, which is what
+    // makes it readable: you can see it commit.
+    if (f.kind === 'seeker' && f.turns > 0 && state.tick >= f.turnAt) {
+      f.turnAt = state.tick + SEEKER_EVERY;
+      f.turns--;
+      const to = target(state, f);
+      if (to) {
+        const want = Math.atan2(to.y - f.y, to.x - f.x);
+        const have = Math.atan2(f.vy, f.vx);
+        let d = want - have;
+        while (d > Math.PI) d -= Math.PI * 2;
+        while (d < -Math.PI) d += Math.PI * 2;
+        const a = have + Math.max(-SEEKER_TURN, Math.min(SEEKER_TURN, d));
+        const speed = Math.hypot(f.vx, f.vy);
+        f.vx = Math.cos(a) * speed;
+        f.vy = Math.sin(a) * speed;
+        state.events.push({ type: 'seekturn', x: f.x, y: f.y, left: f.turns });
+      }
+    }
+
     f.x += f.vx * DT;
     f.y += f.vy * DT;
     if (f.life <= 0 || f.x < state.scroll - CULL_LEFT || f.x > state.scroll + VIEW_W + 30
       || f.y < -20 || f.y > VIEW_H + 20) {
       f.dead = true;
-    } else if (inRock(terrain, f.x, f.y, 0)) {
+    } else if (f.kind !== 'mine' && inRock(terrain, f.x, f.y, 0)) {
       f.dead = true;
       state.events.push({ type: 'spark', x: f.x, y: f.y });
     }
@@ -586,6 +669,32 @@ function shotsHitFoes(state) {
         break;
       }
     }
+    // Mines are the one thing coming the other way that can be shot, and it is
+    // what makes a walker's trail a mess to clear rather than a wall.
+    if (!shot.dead) {
+      for (const f of state.flak) {
+        if (f.dead || f.kind !== 'mine') continue;
+        if ((shot.x - f.x) ** 2 + (shot.y - f.y) ** 2 > (shot.r + f.r) ** 2) continue;
+        if (shot.hit) {
+          if (shot.hit.includes(f.id)) continue;
+          shot.hit.push(f.id);
+        }
+        f.hp -= shot.dmg;
+        if (f.hp <= 0) {
+          f.dead = true;
+          const { loop } = difficultyOf(state);
+          state.score += Math.round(40 * (1 + loop * LOOP_SCORE));
+          state.events.push({ type: 'minekill', x: f.x, y: f.y });
+        } else {
+          state.events.push({ type: 'hit', x: f.x, y: f.y, amount: shot.dmg, colour: '#ffb46a' });
+        }
+        if (!shot.pierce) {
+          shot.dead = true;
+          break;
+        }
+      }
+    }
+
     if (shot.dead || !state.boss || state.boss.dying) continue;
 
     const boss = state.boss;
@@ -703,6 +812,14 @@ function flakHitsShips(state) {
       if (p.has && (p.x - f.x) ** 2 + (p.y - f.y) ** 2 <= (POD_R + f.r) ** 2) {
         f.dead = true;
         state.events.push({ type: 'absorb', x: f.x, y: f.y, seat: ship.index });
+        break;
+      }
+      // A mine does not have to touch you. It goes off when you are near it,
+      // and only once it has finished arming.
+      if (f.kind === 'mine') {
+        if (f.arm > 0) continue;
+        if ((ship.x - f.x) ** 2 + (ship.y - f.y) ** 2 > MINE_TRIGGER ** 2) continue;
+        popMine(state, f);
         break;
       }
       if (ship.invuln > 0) continue;

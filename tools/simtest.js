@@ -19,9 +19,10 @@ import { FOES, FOE_KEYS } from '../src/game/foes.js';
 import { chargeLevel, stepShot } from '../src/game/weapons.js';
 import { demoMask } from '../src/demo.js';
 import {
-  BTN, CHARGE_FULL, CHARGE_MIN, CHARGE_PIERCE, DROP_R, HULL_MAX, INVULN_TICKS,
-  LOOP_QUIET, MAX_MISSILES, MAX_SPEEDUPS, POD_MAX_LEVEL, QUIET_FLOOR, QUIET_RUN,
-  SHIP_R, SKILL_LEVELS, TICK_RATE, VIEW_H, VIEW_W,
+  BTN, CHARGE_FULL, CHARGE_MIN, CHARGE_PIERCE, DROP_R, FLAK_SPEED, HULL_MAX,
+  INVULN_TICKS, LOOP_QUIET, MAX_MISSILES, MAX_SPEEDUPS, MINE_ARM, MINE_TRIGGER,
+  POD_MAX_LEVEL, QUIET_FLOOR, QUIET_RUN, SEEKER_CORRECTIONS, SEEKER_SPEED, SHIP_R,
+  SKILL_LEVELS, TICK_RATE, VIEW_H, VIEW_W,
 } from '../src/constants.js';
 import {
   Highscores, LEVELS, cleanEntry, levelFor, levelOf, merge, partsOf, placeOf, qualifies,
@@ -669,6 +670,201 @@ for (const key of FOE_KEYS) {
     }
   }
   check(early === 0, 'nothing shoots at you from off the screen');
+}
+
+// --- What some of them are carrying ------------------------------------------
+
+console.log('\nSpecial weapons:');
+{
+  // Somewhere in the five stages, each of the three has to actually be used.
+  const carrying = { lay: [], seeker: [], spiral: [] };
+  for (const key of FOE_KEYS) {
+    const mode = FOES[key].aim?.mode;
+    if (carrying[mode]) carrying[mode].push(key);
+  }
+  for (const boss of STAGES.map((st) => st.boss)) {
+    for (const gun of boss.guns) if (carrying[gun.mode]) carrying[gun.mode].push(boss.name);
+  }
+  for (const [mode, who] of Object.entries(carrying)) {
+    check(who.length > 0, `something carries ${mode}: ${who.join(', ')}`);
+  }
+}
+
+/** Puts one enemy in an empty corridor and lets it get on with it. */
+function loose(kind, opts = {}) {
+  const state = createRun({ seed: 5, skill: 'normal', ...opts });
+  step(state, [0, 0]);
+  state.foes.length = 0;
+  state.flak.length = 0;
+  const def = FOES[kind];
+  state.foes.push({
+    id: state.nextId++,
+    kind,
+    def,
+    x: state.ships[0].x + 180,
+    y: state.ships[0].y,
+    baseY: state.ships[0].y,
+    vx: 0,
+    vy: 0,
+    r: def.r,
+    hp: 9999,
+    age: 0,
+    fireAt: -999,
+    side: 'floor',
+    give: null,
+    head: 0,
+    lag: 0,
+    trail: null,
+    flash: 0,
+    chain: false,
+    dieIn: 0,
+    dying: false,
+  });
+  return state;
+}
+
+{
+  // The seeker: it changes its mind a fixed number of times and then has to
+  // live with it. That is the whole weapon - spend its corrections and step
+  // aside - so both halves are worth pinning down.
+  const state = loose('carrier');
+  let launched = null;
+  for (let t = 0; t < 200 && !launched; t++) {
+    step(state, [0, 0]);
+    launched = state.flak.find((f) => f.kind === 'seeker');
+  }
+  check(!!launched, 'a carrier launches seekers');
+  check(launched.turns === SEEKER_CORRECTIONS,
+    `and each one starts with ${SEEKER_CORRECTIONS} corrections`);
+  check(SEEKER_SPEED < FLAK_SPEED,
+    `a seeker is slower than a plain shot (${SEEKER_SPEED} against ${FLAK_SPEED})`);
+
+  // Fly away from it and count how many times it actually turns.
+  let turns = 0;
+  for (let t = 0; t < 400; t++) {
+    const ship = state.ships[0];
+    ship.y = ship.y > VIEW_H / 2 ? 40 : VIEW_H - 40; // never where it is pointing
+    step(state, [0, 0]);
+    turns += state.events.filter((e) => e.type === 'seekturn').length;
+    if (!state.flak.some((f) => f.id === launched.id)) break;
+  }
+  check(turns >= SEEKER_CORRECTIONS, `it corrects ${turns} times across the volley`);
+  check(launched.turns === 0, 'and then it is committed');
+
+  // Committed means committed: the heading stops changing.
+  const was = { vx: launched.vx, vy: launched.vy };
+  for (let t = 0; t < 40; t++) {
+    state.ships[0].y = 20;
+    step(state, [0, 0]);
+  }
+  check(launched.vx === was.vx && launched.vy === was.vy,
+    'a spent seeker flies straight however much you move');
+}
+
+{
+  // The mine: harmless while it arms, dangerous once it is not, and it throws
+  // its shrapnel in a ring so the answer is distance rather than a direction.
+  const state = loose('walker');
+  let mine = null;
+  for (let t = 0; t < 200 && !mine; t++) {
+    step(state, [0, 0]);
+    mine = state.flak.find((f) => f.kind === 'mine');
+  }
+  check(!!mine, 'a walker lays mines instead of shooting at you');
+  check(mine.arm > 0, 'and it arrives unarmed');
+
+  // The walker is standing on its own mine, which is fine in the game and
+  // useless here: everything below is about the mine, and a ship parked on the
+  // pair of them would be hitting the walker.
+  state.foes.length = 0;
+  const ship = state.ships[0];
+  ship.hull = 9;
+  ship.invuln = 0;
+  ship.x = mine.x;
+  ship.y = mine.y;
+  step(state, [0, 0]);
+  check(state.flak.includes(mine) && ship.hull === 9,
+    'sitting on one while it is still arming costs nothing');
+
+  for (let t = 0; t < MINE_ARM + 4; t++) {
+    ship.x = mine.x + 200;
+    step(state, [0, 0]);
+  }
+  check(mine.arm === 0, 'it arms on its own');
+  const before = state.flak.length;
+  ship.x = mine.x + MINE_TRIGGER * 0.5;
+  ship.y = mine.y;
+  step(state, [0, 0]);
+  check(!state.flak.includes(mine), 'and going near an armed one sets it off');
+  check(state.flak.length > before, `into a ring of ${state.flak.length} pieces`);
+}
+
+{
+  // It can be shot, and the pod eats it. Between them that is what turns a
+  // walker's trail into a mess to clear rather than a wall to go round.
+  const state = loose('walker');
+  let mine = null;
+  for (let t = 0; t < 200 && !mine; t++) {
+    step(state, [0, 0]);
+    mine = state.flak.find((f) => f.kind === 'mine');
+  }
+  state.foes.length = 0; // the walker is in the way of its own mine
+  const score = state.score;
+  state.shots.push({
+    id: state.nextId++,
+    kind: 'beam',
+    seat: 0,
+    x: mine.x,
+    y: mine.y,
+    vx: 0,
+    vy: 0,
+    r: 8,
+    dmg: 9,
+    life: 20,
+    pierce: false,
+    hit: null,
+  });
+  step(state, [0, 0]);
+  check(!state.flak.includes(mine), 'a mine can be shot off the board');
+  check(state.score > score, 'and it is worth something');
+
+  const other = loose('walker');
+  let second = null;
+  for (let t = 0; t < 200 && !second; t++) {
+    step(other, [0, 0]);
+    second = other.flak.find((f) => f.kind === 'mine');
+  }
+  other.foes.length = 0;
+  const ship = other.ships[0];
+  ship.pod.has = true;
+  ship.pod.kind = 'blue';
+  ship.pod.level = 1;
+  ship.pod.mode = 'out';
+  ship.pod.x = second.x;
+  ship.pod.y = second.y;
+  ship.hull = 9;
+  step(other, [0, 0]);
+  check(!other.flak.includes(second) && ship.hull === 9, 'and the pod grinds one away for free');
+}
+
+{
+  // The spiral turns at its own rate rather than following anybody: standing
+  // still is the only way to be hit by it, which is the opposite of an aimed
+  // shot and the reason the orb has one.
+  const state = loose('orb');
+  const angles = [];
+  for (let t = 0; t < 90; t++) {
+    const before = state.flak.length;
+    // Parked somewhere that would drag an aimed shot around if it were aimed.
+    state.ships[0].y = t % 2 ? 40 : VIEW_H - 40;
+    step(state, [0, 0]);
+    for (let i = before; i < state.flak.length; i++) {
+      angles.push(Math.atan2(state.flak[i].vy, state.flak[i].vx));
+    }
+  }
+  check(angles.length > 6, `an orb throws out ${angles.length} shots in a second and a half`);
+  const spread = new Set(angles.map((a) => Math.round(a * 4))).size;
+  check(spread > 3, `and they go in ${spread} different directions rather than at you`);
 }
 
 // --- The score board ---------------------------------------------------------

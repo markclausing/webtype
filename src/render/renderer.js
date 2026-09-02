@@ -15,8 +15,8 @@
  */
 
 import {
-  CHARGE_FULL, CHARGE_MIN, HULL_MAX, MAX_MISSILES, MAX_SPEEDUPS, POD_KINDS, POD_R,
-  SHIP_H, SHIP_PRESETS, SHIP_W, VIEW_H, VIEW_W,
+  CHARGE_FULL, CHARGE_MIN, HULL_MAX, MAX_MISSILES, MAX_SPEEDUPS, MINE_TRIGGER,
+  POD_KINDS, POD_R, SHIP_H, SHIP_PRESETS, SHIP_W, VIEW_H, VIEW_W,
 } from '../constants.js';
 import { STEP } from '../game/terrain.js';
 import { chargeLevel } from '../game/weapons.js';
@@ -125,6 +125,26 @@ export class Renderer {
           break;
         case 'chain':
           fx.boom(e.x, e.y, 6, e.colour || '#4fd898');
+          break;
+        case 'seeker':
+          fx.ring(e.x, e.y, 16, '#ff5ea8', 14, 1.6);
+          fx.glow(e.x, e.y, 10, '#ff2f86', 8);
+          break;
+        case 'seekturn':
+          // A puff at the kink, so a correction is something you saw happen
+          // rather than something you infer from the new heading.
+          fx.spark(e.x, e.y, '#ff9ecb', 4, 70, 14);
+          break;
+        case 'minelaid':
+          fx.ring(e.x, e.y, 12, '#8f7f6a', 14, 1.2);
+          break;
+        case 'minepop':
+          fx.boom(e.x, e.y, 11, '#ff7a3a');
+          fx.ring(e.x, e.y, 34, '#ffca4d', 20, 2);
+          break;
+        case 'minekill':
+          fx.boom(e.x, e.y, 8, '#ffb46a');
+          fx.score(e.x, e.y - 8, '40');
           break;
         case 'absorb':
           fx.ring(e.x, e.y, 12, '#ffffff', 12, 1.6);
@@ -410,12 +430,18 @@ export class Renderer {
       ctx.translate(foe.x, foe.y);
       const hurt = foe.flash > 0;
       const colour = hurt ? '#ffffff' : foe.def.colour;
+      // A gradient rather than a flat disc. At a fifth opacity a plain circle
+      // is a visible bubble with the enemy sitting inside it, and on something
+      // the size of a carrier the bubble is the biggest thing on the screen.
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      ctx.globalAlpha = hurt ? 0.5 : 0.2;
-      ctx.fillStyle = colour;
+      const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, foe.r * 2.1);
+      halo.addColorStop(0, colour);
+      halo.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.globalAlpha = hurt ? 0.6 : 0.3;
+      ctx.fillStyle = halo;
       ctx.beginPath();
-      ctx.arc(0, 0, foe.r * 1.9, 0, Math.PI * 2);
+      ctx.arc(0, 0, foe.r * 2.1, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
       drawFoe(ctx, foe, colour, this.frame, state);
@@ -531,30 +557,137 @@ export class Renderer {
     ctx.restore();
   }
 
+  /**
+   * Everything coming the other way.
+   *
+   * Three kinds, and they have to be told apart at a glance in a corridor that
+   * is already full of light. A shot is a hot orange bead. A seeker is a dart
+   * with a tail, in a colour nothing else uses, carrying one pip for each
+   * correction it has left - which is the information the weapon is about. A
+   * mine blinks while it is arming and stops blinking when it is not.
+   */
   flak(state) {
+    const ctx = this.ctx;
+    for (const f of state.flak) {
+      if (f.kind === 'mine') this.mine(f);
+      else if (f.kind === 'seeker') this.seeker(f);
+      else this.bead(f);
+    }
+  }
+
+  bead(f) {
     const ctx = this.ctx;
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    for (const f of state.flak) {
-      // Three rings of it, and deliberately the hottest thing on the screen
-      // after a beam: what is about to hurt you has to be legible against a
-      // corridor that is already full of light.
-      ctx.globalAlpha = 0.5;
-      ctx.fillStyle = '#ff3b1e';
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = '#ff3b1e';
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, f.r * 2.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = '#ffa83c';
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, f.r * 1.15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#fff4e0';
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, f.r * 0.55, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  seeker(f) {
+    const ctx = this.ctx;
+    const a = Math.atan2(f.vy, f.vx);
+    ctx.save();
+    ctx.translate(f.x, f.y);
+    ctx.rotate(a);
+    ctx.globalCompositeOperation = 'lighter';
+
+    // A tail, so which way it is committed is readable from across the screen.
+    const g = ctx.createLinearGradient(-4, 0, -22, 0);
+    g.addColorStop(0, '#ff5ea8');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(-3, -2.6);
+    ctx.lineTo(-20 - Math.random() * 6, 0);
+    ctx.lineTo(-3, 2.6);
+    ctx.closePath();
+    ctx.fill();
+
+    // A soft halo rather than a flat disc: at 45% opacity a plain circle came
+    // out as a purple bubble with the missile parked inside it.
+    const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, 9);
+    halo.addColorStop(0, '#ff2f86');
+    halo.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(0, 0, 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#ffd9ec';
+    ctx.beginPath();
+    ctx.moveTo(6, 0);
+    ctx.lineTo(-3, -3);
+    ctx.lineTo(-3, 3);
+    ctx.closePath();
+    ctx.fill();
+
+    // One pip per correction it still has. When they are gone it is committed,
+    // and stepping aside is free - which is the whole thing you are being asked
+    // to learn, so it is drawn rather than left to be guessed at.
+    ctx.fillStyle = '#ffffff';
+    for (let i = 0; i < f.turns; i++) {
       ctx.beginPath();
-      ctx.arc(f.x, f.y, f.r * 2.4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 0.9;
-      ctx.fillStyle = '#ffa83c';
-      ctx.beginPath();
-      ctx.arc(f.x, f.y, f.r * 1.15, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = '#fff4e0';
-      ctx.beginPath();
-      ctx.arc(f.x, f.y, f.r * 0.55, 0, Math.PI * 2);
+      ctx.arc(-6 - i * 3, 0, 1, 0, Math.PI * 2);
       ctx.fill();
     }
+    ctx.restore();
+  }
+
+  mine(f) {
+    const ctx = this.ctx;
+    const arming = f.arm > 0;
+    // While it arms it blinks and is harmless; once armed it holds a steady
+    // glow and a ring showing exactly how near is too near.
+    const on = !arming || Math.floor(this.frame / 4) % 2 === 0;
+    ctx.save();
+    ctx.translate(f.x, f.y);
+    if (!arming) {
+      // An outline rather than a filled disc: it says exactly how near is too
+      // near, and eight of them in a row do not add up into one bright smear
+      // the way eight filled ones did.
+      ctx.save();
+      ctx.globalAlpha = 0.4 + 0.2 * Math.sin(this.frame * 0.12 + f.id);
+      ctx.strokeStyle = '#ff4d3a';
+      ctx.lineWidth = 0.8;
+      ctx.setLineDash([3, 4]);
+      ctx.beginPath();
+      ctx.arc(0, 0, MINE_TRIGGER, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.strokeStyle = arming ? '#8f7f6a' : '#ff8a4a';
+    ctx.lineWidth = 1.6;
+    ctx.globalAlpha = on ? 1 : 0.35;
+    for (let i = 0; i < 8; i++) {
+      const t = (i / 8) * Math.PI * 2 + this.frame * 0.012;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(t) * f.r * 0.6, Math.sin(t) * f.r * 0.6);
+      ctx.lineTo(Math.cos(t) * f.r * 1.35, Math.sin(t) * f.r * 1.35);
+      ctx.stroke();
+    }
+    ctx.fillStyle = arming ? '#5a4f45' : '#c8542f';
+    ctx.beginPath();
+    ctx.arc(0, 0, f.r * 0.66, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = arming ? '#a89880' : '#ffe9c0';
+    ctx.beginPath();
+    ctx.arc(0, 0, f.r * (arming ? 0.2 : 0.3), 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
   }
 

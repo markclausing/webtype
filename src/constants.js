@@ -191,6 +191,50 @@ export const POD_FIRE_EVERY = [16, 13, 10];
 export const FLAK_SPEED = 132;
 export const FLAK_R = 3.2;
 
+/**
+ * The seeker: a missile that is allowed to change its mind a fixed number of
+ * times and then has to live with it.
+ *
+ * It is deliberately slower than a plain shot. A fast homing missile is not a
+ * puzzle, it is a countdown - there is nothing to do about it but be somewhere
+ * else already. A slow one that corrects three times is a conversation: it locks
+ * on, you move, it corrects, you move again, and on the fourth move it has
+ * nothing left and sails past. Learning to spend its corrections and then step
+ * out of the way is the whole trick, and it is a trick you can be taught by
+ * being killed by it twice.
+ *
+ * The corrections are discrete on purpose. Something that homed continuously
+ * would give the eye nothing to read; this visibly kinks towards you, holds
+ * straight, and kinks again.
+ */
+export const SEEKER_SPEED = 104;
+export const SEEKER_TURN = 1.9; // radians it may swing in one correction
+export const SEEKER_CORRECTIONS = 3;
+export const SEEKER_EVERY = 30; // ticks between one correction and the next
+export const SEEKER_LIFE = 320;
+export const SEEKER_R = 3.6;
+
+/**
+ * The mine: dropped where it lies, and the corridor carries it towards you.
+ *
+ * It arms rather than appearing dangerous, and the arming is visible, because a
+ * hazard that is lethal the instant it exists cannot be planned around by
+ * somebody who was already committed to that piece of air. Once armed it goes
+ * off if you come near it, and it throws its shrapnel in a ring, so the safe
+ * answer is distance rather than a direction.
+ *
+ * It can be shot. That is the point of it: it turns the walker into something
+ * that leaves a mess you have to clean up rather than something that shoots at
+ * you, and the pod grinding a line of them away is one of the nicer things the
+ * pod does.
+ */
+export const MINE_ARM = 42; // ticks of being harmless first
+export const MINE_FUSE = 520; // and how long it lasts once it is armed
+export const MINE_R = 6.5;
+export const MINE_TRIGGER = 20; // how close is too close
+export const MINE_SHARDS = 7;
+export const MINE_HP = 2;
+
 /** How close a pickup has to be to be picked up. Generous: this is a reward. */
 export const DROP_R = 11;
 export const DROP_LIFE = 460; // about eight seconds of drifting before it is gone
@@ -236,10 +280,17 @@ export const SHIP_PRESETS = [
  * accurate is a game you can feel cheating. What changes is how much hull you
  * start with, how often the corridor shoots at all, and how quickly what it
  * fires arrives - three numbers you can see the effect of.
+ *
+ * What does not change is how much is in the corridor. That is the same stage
+ * for everybody, and it means a good part of the danger - flying into things -
+ * is the same on every setting. So the gap between the settings has to be made
+ * by the shooting, and EASY leans on it: a third longer between shots and a
+ * sixth off their speed. Set closer than that, EASY and NORMAL came out within
+ * a fifth of a hit per minute of each other, which is not a difficulty setting.
  */
 export const SKILL_LEVELS = {
   easy: {
-    key: 'easy', label: 'EASY', hull: 10, rate: 1.15, flak: 0.94, foeHp: 0.9,
+    key: 'easy', label: 'EASY', hull: 10, rate: 1.32, flak: 0.84, foeHp: 0.9,
   },
   normal: {
     key: 'normal', label: 'NORMAL', hull: 7, rate: 1, flak: 1, foeHp: 1,
@@ -290,7 +341,7 @@ export const LOOP_SCORE = 0.3; // everything is worth this much more, too
 /**
  * How much of a stage's script is flown a second time on each later lap.
  *
- * A third of it per lap, spread evenly through the stage rather than bunched,
+ * Half of it per lap, spread evenly through the stage rather than bunched,
  * and mirrored across the corridor so that the second copy is a different
  * problem rather than the same one twice. Past three laps it is spawning every
  * wave twice over; past six, three times.
@@ -299,4 +350,4 @@ export const LOOP_SCORE = 0.3; // everything is worth this much more, too
  * purpose, and a lap that handed out two of every repair would be an easier lap,
  * not a harder one.
  */
-export const LOOP_CROWD = 0.34;
+export const LOOP_CROWD = 0.5;

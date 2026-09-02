@@ -143,7 +143,9 @@ export const FOES = {
     points: 300,
     colour: '#b6c46a',
     clings: true,
-    aim: { mode: 'ship', every: 74, n: 2, spread: 0.3 },
+    // It does not shoot at you at all. It walks up the corridor laying mines
+    // behind it, and the corridor brings them back.
+    aim: { mode: 'lay', every: 96, n: 1 },
     move(state, foe) {
       foe.x += 19 * DT;
       cling(state, foe);
@@ -163,7 +165,9 @@ export const FOES = {
     h: 24,
     points: 400,
     colour: '#ffd76a',
-    aim: { mode: 'ship', every: 112, n: 1 },
+    // A spinning spray rather than an aimed shot: it is slow and tough and you
+    // will be near it for a while, so what it asks is that you keep moving.
+    aim: { mode: 'spiral', every: 12, n: 2, spread: 0.42 },
     move(state, foe) {
       foe.x -= 42 * DT;
       foe.y = foe.baseY + Math.sin((state.tick + foe.id * 11) * 0.045) * 18;
@@ -183,7 +187,9 @@ export const FOES = {
     h: 28,
     points: 500,
     colour: '#ff7f9c',
-    aim: { mode: 'fan', every: 82, n: 3, spread: 0.52 },
+    // The only thing in the corridor that carries seekers. It parks in the
+    // right-hand third and spends a magazine of them on you.
+    aim: { mode: 'seeker', every: 72, n: 2, spread: 0.5 },
     move(state, foe) {
       foe.age++;
       const hold = state.scroll + VIEW_W * 0.72;

@@ -1,0 +1,479 @@
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #05070f;
+  color: #e6eefc;
+  font-family: "Courier New", ui-monospace, monospace;
+  overflow: hidden;
+  /* No rubber banding, no pinch zoom, no text selection while you are playing. */
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+#screen { touch-action: none; }
+
+#app {
+  position: relative;
+  width: 100vw;
+  /* 100vh on iOS counts the browser chrome, so the bottom of the layout - the
+     on-screen controls, the launch button - ends up under it. dvh is the part
+     you can actually see; the vh line stays as a fallback. */
+  height: 100vh;
+  height: 100dvh;
+  display: grid;
+  place-items: center;
+}
+
+/* The playfield is a fixed shape and the renderer letterboxes itself into
+   whatever it is given, so the canvas simply takes the whole window and the
+   game paints the bars itself. */
+#screen {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  display: block;
+  background: #04060c;
+  outline: none;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(4, 7, 16, 0.72);
+  backdrop-filter: blur(2px);
+  z-index: 10;
+}
+
+.overlay.hidden { display: none; }
+
+.row.hidden { display: none; }
+
+.panel {
+  width: min(580px, 92vw);
+  max-height: 92vh;
+  max-height: 92dvh;
+  overflow: auto;
+  padding: 26px 30px;
+  background: #101828;
+  border: 2px solid #2f4a72;
+  box-shadow: inset 0 0 0 2px #070c16, 0 10px 40px rgba(0, 0, 0, 0.6);
+}
+
+.panel.small { width: min(340px, 90vw); text-align: center; }
+
+h1 {
+  margin: 0;
+  font-size: 36px;
+  letter-spacing: 4px;
+  color: #58e6ff;
+  text-shadow: 3px 3px 0 #123049;
+}
+
+h1 span { display: block; color: #ffca4d; text-shadow: 3px 3px 0 #4a2c05; }
+
+h2 { margin: 0 0 18px; letter-spacing: 3px; color: #58e6ff; }
+
+.tag { margin: 6px 0 22px; color: #8ba3c7; font-size: 13px; letter-spacing: 1px; }
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.row label {
+  width: 92px;
+  font-size: 13px;
+  color: #8ba3c7;
+  letter-spacing: 1px;
+}
+
+.btns { display: flex; gap: 8px; flex-wrap: wrap; }
+
+button, select {
+  font-family: inherit;
+  font-size: 13px;
+  padding: 9px 14px;
+  color: #e6eefc;
+  background: #1b2a42;
+  border: 2px solid #2f4a72;
+  cursor: pointer;
+  letter-spacing: 1px;
+}
+
+button:hover, select:hover { background: #243755; }
+
+button.active { background: #58e6ff; color: #06121c; border-color: #58e6ff; font-weight: bold; }
+
+button.primary {
+  width: 100%;
+  margin-top: 18px;
+  padding: 13px;
+  font-size: 17px;
+  font-weight: bold;
+  background: #ffca4d;
+  color: #17110a;
+  border-color: #c79a1e;
+}
+
+button.primary:hover { background: #ffdd85; }
+
+.panel.small button { width: 100%; margin-top: 8px; }
+
+.keys {
+  width: 100%;
+  margin: 18px 0 4px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.keys th, .keys td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid #22334e;
+}
+
+.keys th { color: #8ba3c7; font-weight: normal; letter-spacing: 1px; }
+
+.keys td .bind {
+  min-width: 74px;
+  padding: 5px 8px;
+  font-size: 12px;
+  letter-spacing: 0;
+}
+
+.keys td .bind.listening {
+  background: #58e6ff;
+  color: #06121c;
+  border-color: #58e6ff;
+}
+
+.keys td .bind.clash {
+  border-color: #ff7a5a;
+  color: #ff9d85;
+}
+
+.preset { width: 100%; padding: 5px 6px; font-size: 11px; letter-spacing: 0; }
+
+#bindHint.warn { color: #ff9d85; }
+
+.hints {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: #b9c9e2;
+}
+
+.hints b { color: #ffca4d; }
+
+/* --- online --- */
+
+.explain, .fineprint {
+  font-size: 12px;
+  line-height: 1.7;
+  color: #b9c9e2;
+}
+
+.explain b { color: #ffca4d; }
+
+.fineprint { margin: 16px 0 0; color: #7488a6; }
+
+.fineprint code { color: #b9c9e2; }
+
+.code {
+  margin: 16px 0 6px;
+  padding: 14px;
+  font-size: 44px;
+  font-weight: bold;
+  letter-spacing: 14px;
+  text-indent: 14px;
+  text-align: center;
+  color: #58e6ff;
+  background: #0a1424;
+  border: 2px dashed #2f4a72;
+}
+
+.code.hidden { display: none; }
+
+.status {
+  min-height: 18px;
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #8ba3c7;
+}
+
+.joinrow { display: flex; gap: 8px; margin-top: 12px; }
+
+.joinrow input {
+  flex: 1;
+  padding: 11px 14px;
+  font-family: inherit;
+  font-size: 20px;
+  font-weight: bold;
+  letter-spacing: 6px;
+  text-align: center;
+  text-transform: uppercase;
+  color: #e6eefc;
+  background: #0a1424;
+  border: 2px solid #2f4a72;
+}
+
+.joinrow input::placeholder { color: #56698a; letter-spacing: 6px; }
+
+.joinrow button { white-space: nowrap; }
+
+button:disabled { opacity: 0.45; cursor: default; }
+button:disabled:hover { background: #1b2a42; }
+button.primary:disabled:hover { background: #ffca4d; }
+
+/* A phone held sideways is about 400px tall. The panel scrolls, but a button
+   you have to scroll to find is a button nobody presses, so the primary action
+   sticks to the bottom of it and everything else gives up its spare room. */
+.panelFooter {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding-top: 4px;
+  background: #101828;
+  box-shadow: 0 -12px 16px -8px rgba(16, 24, 40, 0.95);
+}
+
+@media (max-height: 560px) {
+  .panel { padding: 14px 18px; max-height: 96dvh; }
+  h1 { font-size: 22px; }
+  h1 span { display: inline; margin-left: 8px; }
+  .tag { margin: 4px 0 12px; font-size: 11px; }
+  .row { margin-bottom: 8px; gap: 10px; }
+  .row label { width: 76px; font-size: 11px; }
+  button, select { padding: 6px 10px; font-size: 11px; }
+  button.primary { margin-top: 10px; padding: 11px; font-size: 15px; }
+  .explain, .fineprint, .hints { font-size: 11px; line-height: 1.5; }
+  .keys th, .keys td { padding: 3px 6px; }
+}
+
+/* On a touch device the tips about the keyboard are a wall of text about keys
+   you do not have - but the ones about the pod are the game, so they stay. */
+@media (pointer: coarse) {
+  #controlsBox .keys, #controlsBox #bindHint { display: none; }
+}
+
+details {
+  margin: 14px 0 4px;
+  border-top: 1px solid #22334e;
+  border-bottom: 1px solid #22334e;
+}
+
+summary {
+  padding: 9px 2px;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: #8ba3c7;
+  cursor: pointer;
+}
+
+summary:hover { color: #ffca4d; }
+
+details[open] summary { color: #ffca4d; }
+
+details .keys { margin-top: 0; }
+
+/* A narrow screen has no room for a label beside its buttons: at 390 pixels the
+   options wrapped into a ragged stack with one button stranded on the line
+   above. The label goes over the top instead. */
+@media (max-width: 520px) {
+  .row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .row label { width: auto; }
+
+  .btns { flex-wrap: wrap; }
+}
+
+/* --- touch controls ---
+   The playfield is fitted into the space above these rather than behind them:
+   a thumb parked over the wave you are about to fly into is no way to play.
+   The renderer is told how much room to leave. */
+
+#touch {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none; /* only the controls themselves take touches */
+  padding: 0 max(14px, env(safe-area-inset-left)) max(14px, env(safe-area-inset-bottom));
+}
+
+/* touch-action does not inherit, so saying it on the box the buttons sit in
+   does nothing for the buttons. Without it on the button itself, holding fire
+   is a long press, and a long press on a phone is a text selection - the
+   callout comes up and the gun stops charging. */
+#stick, #touchButtons, #touchButtons button, #knob {
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+#knob { pointer-events: none; }
+
+/* The bottom-left corner is the stick. Eight ways, like the joystick this is
+   imitating: the shared touch module measures from the middle of this box, so
+   the box is deliberately large and the knob sits in the centre of it, where a
+   thumb resting on the corner of the screen already is. */
+#stick {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 42%;
+  height: 170px;
+  /* No tint of its own. In landscape the playfield reaches into this corner,
+     and a faintly lit quarter of the screen reads as a bug rather than as a
+     control: the knob is the only part of the stick worth drawing. */
+  background: transparent;
+}
+
+#knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 62px;
+  height: 62px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: rgba(88, 230, 255, 0.55);
+  border: 3px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+#touchButtons {
+  position: absolute;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(30px, calc(env(safe-area-inset-bottom) + 18px));
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+#touchButtons button {
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 0;
+  border-width: 3px;
+}
+
+/* FIRE is held for whole stages at a time, so it is the big one and it sits
+   nearest the thumb; POD is a tap you make a few times a stage and sits above
+   and inside, where a tap can reach it without letting go of the trigger. */
+#btnFire {
+  width: 100px;
+  height: 100px;
+  font-size: 15px;
+  background: rgba(255, 202, 77, 0.72);
+  color: #17110a;
+  border-color: rgba(255, 255, 255, 0.55);
+}
+
+#btnPod {
+  width: 68px;
+  height: 68px;
+  margin-bottom: 26px;
+  background: rgba(88, 230, 255, 0.68);
+  color: #06121c;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+#touchButtons button.pressed { filter: brightness(1.35); transform: scale(0.94); }
+
+/* --- Who is in the room -------------------------------------------------- */
+
+.lobby {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin: 10px 0 4px;
+}
+
+.seat {
+  padding: 10px 4px;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-align: center;
+  color: #56698a;
+  background: #0a1424;
+  border: 2px dashed #22334e;
+}
+
+.seat.taken {
+  color: #06121c;
+  border-style: solid;
+  font-weight: bold;
+}
+
+.seat.you { box-shadow: inset 0 0 0 2px #ffca4d; }
+
+.lobby.hidden { display: none; }
+
+/* --- The score board ----------------------------------------------------- */
+
+.scores {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 6px 0 0;
+}
+
+.scores td { padding: 3px 4px; color: #b9c9e2; }
+
+.scores td.place { color: #7488a6; width: 2.2em; }
+.scores td.name { color: #ffca4d; letter-spacing: 2px; }
+.scores td.result { text-align: right; color: #58e6ff; font-weight: bold; }
+.scores td.stage { color: #8ba3c7; text-align: right; }
+.scores td.when { color: #7488a6; text-align: right; }
+.scores tr.fresh td { color: #ffffff; }
+
+.letters {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.letter {
+  display: block;
+  width: 1.4em;
+  padding: 6px 10px;
+  border: 2px solid #2f4a72;
+  border-radius: 4px;
+  font-size: 34px;
+  text-align: center;
+  color: #b9c9e2;
+}
+
+.letter.on {
+  border-color: #ffca4d;
+  color: #ffca4d;
+  /* The slot you are on blinks, the way the cabinet did it. */
+  animation: blink 0.9s steps(2, start) infinite;
+}
+
+@keyframes blink { 50% { opacity: 0.35; } }
+
+/* Generic and deliberately last: .overlay and .row set their own display with
+   the same specificity, so this only wins by coming after them. Without it
+   nothing with class="hidden" was ever actually hidden - the online panel sat
+   underneath the one player menu the whole time. */
+.hidden { display: none; }

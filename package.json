@@ -1,0 +1,14 @@
+{
+  "name": "webtype",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A horizontal shoot-em-up in the browser, on a deterministic simulation. Shares its engine with websoccer, webtennis and webracing.",
+  "scripts": {
+    "start": "node server/relay.js",
+    "test": "node tools/simtest.js && node tools/netcheck.js && node tools/sync-shared.js",
+    "test:sim": "node tools/simtest.js",
+    "test:net": "node tools/netcheck.js",
+    "test:shared": "node tools/sync-shared.js"
+  }
+}

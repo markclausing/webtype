@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>WebType</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- A browser asks for /favicon.ico whether you have one or not, and a 404 on
+       every page load is a poor first impression. These are drawn by
+       tools/make-icons.js, in the game's own colours. -->
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#05070f">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+</head>
+<body>
+  <div id="app">
+    <canvas id="screen" tabindex="0"></canvas>
+
+    <div id="touch" class="hidden">
+      <div id="stick" aria-label="Fly"><div id="knob"></div></div>
+      <div id="touchButtons">
+        <button id="btnFire" type="button">FIRE</button>
+        <button id="btnPod" type="button">POD</button>
+      </div>
+    </div>
+
+    <div id="menu" class="overlay">
+      <div class="panel">
+        <h1>WEB<span>TYPE</span></h1>
+        <p class="tag">HTML / JavaScript &middot; one hull, as far as it takes you</p>
+
+        <div class="row">
+          <label>Players</label>
+          <div class="btns">
+            <button data-mode="1" class="active">1 player</button>
+            <button data-mode="2">2 players</button>
+            <button data-mode="online">Online</button>
+          </div>
+        </div>
+
+        <p id="localSeats" class="fineprint"></p>
+
+        <div class="row" id="skillRow">
+          <label>Skill</label>
+          <div class="btns">
+            <button data-skill="easy">Easy</button>
+            <button data-skill="normal" class="active">Normal</button>
+            <button data-skill="hard">Hard</button>
+          </div>
+        </div>
+        <p id="skillBlurb" class="fineprint"></p>
+
+        <div class="row">
+          <label>Sound</label>
+          <div class="btns">
+            <button data-sound="on" class="active">On</button>
+            <button data-sound="off">Off</button>
+          </div>
+        </div>
+
+        <div class="row">
+          <label>Voice</label>
+          <div class="btns">
+            <button data-talk="on" class="active">On</button>
+            <button data-talk="off">Off</button>
+          </div>
+        </div>
+
+        <details id="controlsBox">
+          <summary>Controls</summary>
+          <table class="keys" id="keysTable">
+            <thead>
+              <tr><th></th><th>Player 1</th><th>Player 2</th></tr>
+            </thead>
+            <tbody id="keysBody"></tbody>
+            <tfoot>
+              <tr>
+                <td>Presets</td>
+                <td><select data-preset="0" class="preset"></select></td>
+                <td><select data-preset="1" class="preset"></select></td>
+              </tr>
+            </tfoot>
+          </table>
+          <p id="bindHint" class="status">Click a key to change it.</p>
+          <ul class="hints">
+            <li><b>Tap fire for pellets, hold it for a beam.</b> Holding winds the
+              gun up; letting go lets it out. A full charge goes straight through
+              everything in the corridor, which is the only way some things ever
+              die.</li>
+            <li><b>The pod is a shield you have to aim.</b> On the nose or the
+              tail it eats every shot that hits it and grinds through anything it
+              touches. It cannot be destroyed, so put it where you are about to
+              be hit.</li>
+            <li><b>Push the pod off and it becomes a turret.</b> The second
+              button sends it forward; press it again and it comes home. Fly past
+              it while it is out there and it will come back onto your tail
+              instead of your nose.</li>
+            <li><b>Red, blue and yellow are three weapons, not three levels.</b>
+              Spread is murderous up close, reflect turns the walls into the gun,
+              and the search rings hit what you cannot see. A second crystal of
+              the same colour makes it stronger; a different one starts again.</li>
+            <li><b>The hull is the whole game.</b> There are no lives and no
+              continues. Repairs exist, there are very few of them, and they are
+              always in the same places.</li>
+          </ul>
+        </details>
+
+        <details id="scoresBox">
+          <summary>Score board <span id="scoresLevel" class="shape"></span></summary>
+          <table class="scores"><tbody id="scoresBody"></tbody></table>
+          <p id="scoresNote" class="fineprint"></p>
+        </details>
+
+        <div id="onlineSetup" class="hidden">
+          <p class="explain">
+            One player opens a run and passes on the code; the other enters it.
+            Whoever opens it starts the run when the second seat is filled.
+          </p>
+          <div id="roomCode" class="code hidden"></div>
+          <div id="lobby" class="lobby hidden"></div>
+          <p id="onlineStatus" class="status"></p>
+          <div class="joinrow">
+            <input id="joinCode" maxlength="4" placeholder="CODE" autocomplete="off" spellcheck="false">
+            <button id="join">JOIN</button>
+          </div>
+          <p class="fineprint">
+            Needs a relay: run <code>npm start</code> yourself, or put the address of a
+            Cloudflare Worker in <code>src/config.js</code>. See the README.
+          </p>
+        </div>
+
+        <div class="panelFooter">
+          <button id="start" class="primary">LAUNCH</button>
+          <button id="host" class="primary hidden">OPEN A NEW RUN</button>
+          <button id="go" class="primary hidden">START THE RUN</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="hiscore" class="overlay hidden">
+      <div class="panel small">
+        <h2>NEW SCORE</h2>
+        <p id="hiscoreLine" class="status"></p>
+        <div id="hiscoreLetters" class="letters"></div>
+        <p class="fineprint">
+          Up and down for the letter, left and right to move along, fire to
+          confirm. Typing works too.
+        </p>
+      </div>
+    </div>
+
+    <div id="pause" class="overlay hidden">
+      <div class="panel small">
+        <h2>PAUSED</h2>
+        <p class="status">Esc to carry on.</p>
+        <button id="quit" class="primary">BACK TO THE MENU</button>
+      </div>
+    </div>
+
+    <div id="gameover" class="overlay hidden">
+      <div class="panel small">
+        <h2 id="overTitle">GAME OVER</h2>
+        <p id="overText" class="status"></p>
+        <button id="overBack" class="primary">BACK TO THE MENU</button>
+      </div>
+    </div>
+
+    <div id="netend" class="overlay hidden">
+      <div class="panel small">
+        <h2 id="netendTitle">RUN OVER</h2>
+        <p id="netendText" class="status"></p>
+        <button id="netendBack" class="primary">BACK TO THE MENU</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

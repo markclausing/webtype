@@ -155,9 +155,12 @@ The delay tunes itself to the connection. Somebody closing their tab does not en
 the run — their ship is handed nothing but zeroes, which both machines do
 identically.
 
-It needs a relay, because two browsers cannot find each other on their own.
-`npm start` is one; `worker/` is the same thing as a Cloudflare Worker, which is
-two commands and a line in `src/config.js`.
+It needs a relay, because two browsers cannot find each other on their own. One
+is already running at `webtype.vibecoach.workers.dev` and the published game
+points at it, so the online mode and the shared board work out of the box.
+`npm start` is a relay too, for playing on your own network; `worker/` is the
+same thing as a Cloudflare Worker, which is two commands and a line in
+`src/config.js`.
 
 ## Tests
 

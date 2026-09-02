@@ -4,6 +4,10 @@ Two things in this game cannot be done from static files: putting two browsers i
 the same room, and keeping a score board that everybody can see. This is both of
 them, in one deployment, on Cloudflare's free tier.
 
+**This game's is already deployed**, at
+`https://webtype.vibecoach.workers.dev`, and `../src/config.js` already points at
+it. Nothing below needs doing to play; it is here for anybody who wants their own.
+
 ```bash
 cd worker
 npx wrangler login
@@ -71,7 +75,12 @@ sync — which is exactly what happened the first time one of these boards was
 tidied up.
 
 With no `ADMIN_KEY` set, neither door exists at all. That is the safe default for
-anybody who deploys this and never reads this file.
+anybody who deploys this and never reads this file. The key set on the deployed
+Worker is in `.admin-key` next to this file, which is gitignored: it exists in
+that file and in Cloudflare and nowhere else, so if you lose it, set a new one.
+
+A `DISCORD_WEBHOOK` can be added or changed at any time and needs no redeploy —
+the Worker reads it per request, and with none set the announcer is simply quiet.
 
 ## What it does not do
 

@@ -445,22 +445,41 @@ details .keys { margin-top: 0; }
 .scores td.when { color: #7488a6; text-align: right; }
 .scores tr.fresh td { color: #ffffff; }
 
-.letters {
+/* The three letters, and a pair of arrows over and under each of them.
+   The arrows are not a phone affordance bolted on the side: the picker used to
+   be driven only by the game's own stick and fire button, and on a phone those
+   live underneath this panel, where a tap cannot reach them. A run that earned
+   a score had nowhere to go. They are shown on every device because clicking an
+   arrow is nicer than hunting for the arrow keys anyway. */
+.picker { margin: 18px 0 6px; }
+
+.letters, .letterRow {
   display: flex;
   justify-content: center;
   gap: 12px;
-  margin: 18px 0;
+}
+
+.letter, .panel.small .letterRow button {
+  width: 64px;
 }
 
 .letter {
   display: block;
-  width: 1.4em;
-  padding: 6px 10px;
+  padding: 6px 0;
   border: 2px solid #2f4a72;
   border-radius: 4px;
   font-size: 34px;
   text-align: center;
   color: #b9c9e2;
+  cursor: pointer;
+}
+
+/* Big enough to hit with a thumb without looking, which is the whole point. */
+.panel.small .letterRow button {
+  margin: 6px 0;
+  padding: 10px 0;
+  font-size: 16px;
+  line-height: 1;
 }
 
 .letter.on {

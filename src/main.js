@@ -19,7 +19,7 @@ import { Renderer } from './render/renderer.js';
 import { AudioEngine, Charger, Chiptune, Sfx } from './audio.js';
 import { Speech } from './speech.js';
 import * as commentary from './commentary.js';
-import { Highscores, makeId, placeOf } from './highscores.js';
+import { Highscores, NAME_LENGTH, makeId, placeOf } from './highscores.js';
 import { NameEntry } from './nameEntry.js';
 import { boardFor, relayFor } from './config.js';
 import { Signal } from './net/signal.js';
@@ -363,6 +363,53 @@ window.addEventListener('keydown', (e) => {
 }, true);
 
 /**
+ * The same picker, with something to press.
+ *
+ * The three letters are driven by the game's own stick and fire button, which is
+ * right on a cabinet and on a keyboard and is nothing at all on a phone: those
+ * controls live at the bottom of the screen, this panel is laid over the top of
+ * them, and a tap lands on the panel. A run that had earned a score arrived at a
+ * screen with no way off it.
+ *
+ * So the picker gets arrows and an OK of its own. They drive the same object the
+ * stick does rather than a second copy of the logic - nameEntry is one of the
+ * files shared with the other three games and is not this game's to change - and
+ * they are shown everywhere, because clicking an arrow beats finding the arrow
+ * keys on a laptop too.
+ */
+for (let slot = 0; slot < NAME_LENGTH; slot++) {
+  for (const [row, by, label] of [
+    ['hiscoreUp', -1, '\u25B2'],
+    ['hiscoreDown', 1, '\u25BC'],
+  ]) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = label;
+    button.addEventListener('click', () => {
+      nameEntry.slot = slot;
+      nameEntry.cycle(by);
+      nameEntry.render();
+      // Otherwise the button keeps focus and the next Space - which is fire on
+      // the default bindings - presses it again instead of confirming.
+      button.blur();
+    });
+    document.getElementById(row).appendChild(button);
+  }
+}
+
+// Tapping a letter moves to it, which is what everybody tries first.
+document.getElementById('hiscoreLetters').addEventListener('click', (e) => {
+  const at = [...e.currentTarget.children].indexOf(e.target);
+  if (at < 0) return;
+  nameEntry.slot = at;
+  nameEntry.render();
+});
+
+document.getElementById('hiscoreOk').addEventListener('click', () => {
+  nameEntry.confirm();
+});
+
+/**
  * One entry per run, whoever was flying.
  *
  * Two people at one keyboard share a score, so there is one name to ask for. Who
@@ -393,6 +440,10 @@ function offerRecord() {
     + `number ${placeOf(highscores.table(game.boardMode, game.tier), entry)} `
     + `of the ${boardName(game.boardMode, game.tier)} board`;
   hiscoreBox.classList.remove('hidden');
+  // Out of the way while the picker is up. They sit under this panel and cannot
+  // be reached anyway, and a control showing through an overlay that swallows
+  // every tap is worse than no control at all.
+  touch.show(false);
   nameEntry.start(lastName());
   return true;
 }

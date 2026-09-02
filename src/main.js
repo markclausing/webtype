@@ -39,6 +39,13 @@ const goButton = document.getElementById('go');
 
 const audio = new AudioEngine();
 const music = new Chiptune(audio);
+/**
+ * How loud the soundtrack sits while a stage is running.
+ *
+ * A chip track mixed for a title screen buries the sound of being shot, and
+ * being shot is the one thing you must always hear. Menu level is 1.
+ */
+const GAME_MUSIC = 0.58;
 const charger = new Charger(audio);
 const speech = new Speech(audio, commentary);
 const sfx = new Sfx(audio, speech);
@@ -122,12 +129,16 @@ function beginRun(state, transport, seat) {
   canvas.focus();
   renderer.reset();
   if (onTouchDevice) touch.show(true);
-  music.stop();
-  if (soundOn) charger.start();
+  music.duck(GAME_MUSIC);
+  if (soundOn) {
+    music.play(state.stage.key);
+    charger.start();
+  }
   sizeCanvas();
 }
 
 function startLocal({ players }) {
+  document.getElementById('touch').classList.remove('online');
   const seats = localSeats(players);
   const humans = new Array(MAX_SHIPS).fill(false);
   for (const seat of seats) humans[seat] = true;
@@ -144,6 +155,7 @@ function startLocal({ players }) {
 }
 
 function startOnline(opts) {
+  document.getElementById('touch').classList.add('online');
   const state = createRun({
     seed: opts.seed,
     players: 2,
@@ -171,7 +183,8 @@ function toMenu() {
   netendBox.classList.add('hidden');
   touch.show(false);
   renderer.bottomInset = 0;
-  if (soundOn) music.start();
+  music.duck(1);
+  if (soundOn) music.play('title');
   setOnlineStatus('');
   roomCode.classList.add('hidden');
   lobbyBox.classList.add('hidden');
@@ -242,6 +255,7 @@ function frame(now) {
   }
 
   hum();
+  soundtrack();
   renderer.draw(game.state, { seat: game.seat, net: netInfo() });
   checkNetEnd();
 
@@ -261,6 +275,19 @@ function hum() {
     ? Math.min(1, ship.charge / CHARGE_FULL) : 0;
   charger.update(wound, !!ship && ship.charge >= CHARGE_FULL,
     boss ? Math.max(0.2, boss.hp / boss.maxHp) : 0);
+}
+
+/**
+ * A track per stage, changed as you arrive.
+ *
+ * Driven off which stage the simulation says you are in rather than from the
+ * event that started it, so it is right after a pause, after a reload of the
+ * sound, and on the machine that joined an online run halfway through the
+ * handshake. Switching to the song already playing does nothing.
+ */
+function soundtrack() {
+  if (!soundOn || !game.state) return;
+  music.play(game.state.stage.key);
 }
 
 function netInfo() {
@@ -700,7 +727,8 @@ document.querySelectorAll('[data-sound]').forEach((btn) => {
     } catch { /* private mode */ }
     audio.enabled = soundOn;
     if (soundOn) audio.wake();
-    music.toggle(soundOn && !game.state);
+    // Whatever is playing now: the stage's own track mid-run, the menu's at rest.
+    music.toggle(soundOn);
   });
 });
 
@@ -843,22 +871,37 @@ document.getElementById('joinCode').addEventListener('keydown', (e) => e.stopPro
 
 // --- Odds and ends -----------------------------------------------------------
 
+/**
+ * Pausing, from a key or from a button.
+ *
+ * There was only the key, which on a phone means there was no way to stop, and
+ * no way out of a run except finishing it or reloading the page. The button in
+ * the corner of the touch layer and the one in the panel are the same door.
+ *
+ * Never online: the other player is not waiting for you, and a lockstep
+ * simulation that one side stopped stepping is a stalled game for both.
+ */
+function setPaused(on) {
+  if (!game.state || game.transport.online) return;
+  game.paused = on;
+  pauseBox.classList.toggle('hidden', !on);
+  if (on) charger.stop();
+  else if (soundOn) charger.start();
+}
+
 window.addEventListener('keydown', (e) => {
-  if (e.code === 'Escape' && game.state && !game.transport.online) {
-    game.paused = !game.paused;
-    pauseBox.classList.toggle('hidden', !game.paused);
-    if (game.paused) charger.stop();
-    else if (soundOn) charger.start();
-  }
+  if (e.code === 'Escape') setPaused(!game.paused);
 });
 
+document.getElementById('btnPause').addEventListener('click', () => setPaused(true));
+document.getElementById('resume').addEventListener('click', () => setPaused(false));
 document.getElementById('quit').addEventListener('click', toMenu);
 document.getElementById('overBack').addEventListener('click', toMenu);
 document.getElementById('netendBack').addEventListener('click', toMenu);
 
 const startMusicOnFirstGesture = () => {
   audio.wake();
-  if (soundOn && !game.state) music.start();
+  if (soundOn) music.play(game.state ? game.state.stage.key : 'title');
   removeEventListener('pointerdown', startMusicOnFirstGesture);
   removeEventListener('keydown', startMusicOnFirstGesture);
 };
@@ -874,4 +917,6 @@ requestAnimationFrame(frame);
 
 // Handy from the console, and used by tools/screenshot.js, which has no other
 // way to make the game do something particular on purpose.
-window.__webtype = { game, highscores, renderer, startLocal };
+window.__webtype = {
+  game, highscores, renderer, startLocal, music, audio,
+};

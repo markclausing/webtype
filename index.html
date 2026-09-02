@@ -23,6 +23,7 @@
 
     <div id="touch" class="hidden">
       <div id="stick" aria-label="Fly"><div id="knob"></div></div>
+      <button id="btnPause" type="button" aria-label="Pause">II</button>
       <div id="touchButtons">
         <button id="btnFire" type="button">FIRE</button>
         <button id="btnPod" type="button">POD</button>
@@ -162,8 +163,9 @@
     <div id="pause" class="overlay hidden">
       <div class="panel small">
         <h2>PAUSED</h2>
-        <p class="status">Esc to carry on.</p>
-        <button id="quit" class="primary">BACK TO THE MENU</button>
+        <p class="status">Esc to carry on, or press resume.</p>
+        <button id="resume" class="primary">RESUME</button>
+        <button id="quit">BACK TO THE MENU</button>
       </div>
     </div>
 

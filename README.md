@@ -43,7 +43,8 @@ Every key can be changed in the menu. Gamepads need no setting up: the first pad
 shares with player one, a second pad is player two.
 
 On a phone, hold it sideways. The bottom-left corner is the stick, `FIRE` is the
-big button and `POD` is the small one beside it. The whole playfield is drawn
+big button, `POD` is the small one beside it, and the little `II` at the top
+pauses — from there you can resume or leave the run. The whole playfield is drawn
 whatever the screen, because it has to be — see below.
 
 ![On a phone, held sideways](docs/screenshots/mobile.png)
@@ -218,6 +219,23 @@ otherwise would mean a shared file full of `if (shooter)`.
 Synthesised in the browser; there is no audio file anywhere in the repository. A
 pulse wave carries the melody, a second one runs the arpeggio, a triangle plays
 the bass and filtered noise does the drums.
+
+**Six tracks — one for the menu and one for each stage** — and they play while
+you are flying rather than only at the title. It is 8-bit techno rather than the
+walking-bass arrangement the other three games use, and the difference is almost
+entirely in two lines: a kick on every beat with a clap on two and four, and an
+open hat on the offbeat eighths, which is the sound that makes a bar feel like it
+is being pushed rather than counted. The bass runs in sixteenths for the same
+reason. Each stage gets its own key, tempo and pulse width — the approach is the
+slowest and roomiest, the foundry is the narrowest and most mechanical, the core
+is the fastest and never resolves — so you can tell where you are with your eyes
+shut. The track changes as you arrive, as a cut rather than a fade: it only
+happens while the screen is holding still on a stage name, and a crossfade
+between two tracks in different keys at different tempos sounds like a mistake.
+
+The music has its own level and ducks under the game, because a chip track mixed
+for a title screen buries the sound of being shot, and being shot is the one
+thing you always have to hear.
 
 The charge is the one sound that is a state rather than an event: a tone whose
 pitch and brightness are how long you have been holding the button, running from

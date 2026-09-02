@@ -320,7 +320,7 @@ details .keys { margin-top: 0; }
    does nothing for the buttons. Without it on the button itself, holding fire
    is a long press, and a long press on a phone is a text selection - the
    callout comes up and the gun stops charging. */
-#stick, #touchButtons, #touchButtons button, #knob {
+#stick, #touchButtons, #touchButtons button, #knob, #btnPause {
   pointer-events: auto;
   touch-action: none;
   -webkit-touch-callout: none;
@@ -398,6 +398,31 @@ details .keys { margin-top: 0; }
 }
 
 #touchButtons button.pressed { filter: brightness(1.35); transform: scale(0.94); }
+
+/* Pause, for a device with no Escape key. Top middle, small and quiet: the
+   score lives in the left corner and the stage name in the right, and this is
+   the one control you must never hit by accident while dodging. */
+#btnPause {
+  position: absolute;
+  left: 50%;
+  top: max(6px, env(safe-area-inset-top));
+  transform: translateX(-50%);
+  width: 46px;
+  height: 34px;
+  padding: 0;
+  font-size: 13px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  color: #e6eefc;
+  background: rgba(10, 20, 36, 0.5);
+  border: 2px solid rgba(88, 230, 255, 0.4);
+  border-radius: 8px;
+}
+
+#btnPause:active { background: rgba(88, 230, 255, 0.55); color: #06121c; }
+
+/* Online there is nothing to pause: the other player is not waiting for you. */
+#touch.online #btnPause { display: none; }
 
 /* --- Who is in the room -------------------------------------------------- */
 

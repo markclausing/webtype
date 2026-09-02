@@ -15,15 +15,11 @@
  * the corridor to look at the nose of your own ship.
  */
 
-const BPM = 152;
-const STEP = 60 / BPM / 4; // one sixteenth note, in seconds
-const BARS = 8;
 const STEPS_PER_BAR = 16;
-const TOTAL_STEPS = BARS * STEPS_PER_BAR;
 
 const SEMITONES = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
 
-/** 'A4' -> 440. Sharps as in 'F#4'. */
+/** 'A4' -> 440. Sharps as in 'F#4'; there are no flats in here, only sharps. */
 export function noteFreq(name) {
   const m = /^([A-G])(#?)(-?\d)$/.exec(name);
   if (!m) return 0;
@@ -31,70 +27,270 @@ export function noteFreq(name) {
   return 440 * 2 ** ((midi - 69) / 12);
 }
 
-// Dm - Bb - F - C, then the same four with the last one turned into an A, which
-// is the oldest way there is of making eight bars sound like they are going
-// somewhere rather than going round.
-const CHORDS = [
-  { bass: 'D2', notes: ['D3', 'F3', 'A3'] },
-  { bass: 'A#1', notes: ['A#2', 'D3', 'F3'] },
-  { bass: 'F2', notes: ['F3', 'A3', 'C4'] },
-  { bass: 'C2', notes: ['C3', 'E3', 'G3'] },
-  { bass: 'D2', notes: ['D3', 'F3', 'A3'] },
-  { bass: 'A#1', notes: ['A#2', 'D3', 'F3'] },
-  { bass: 'G2', notes: ['G3', 'A#3', 'D4'] },
-  { bass: 'A2', notes: ['A2', 'C#3', 'E3'] },
-];
+/**
+ * What the drums do on a given sixteenth.
+ *
+ * Techno rather than the walking-bass arrangement the other three games use, and
+ * the difference is almost entirely here: a kick on every beat, a clap on two
+ * and four, and an open hat on the offbeat eighths. That last one is the whole
+ * genre in one line - it is the sound that makes a bar feel like it is being
+ * pushed rather than counted.
+ */
+const DRUMS = {
+  four(step) {
+    const out = [];
+    if (step % 4 === 0) out.push('kick');
+    if (step === 4 || step === 12) out.push('clap');
+    if (step % 4 === 2) out.push('open');
+    else if (step % 2 === 1) out.push('hat');
+    return out;
+  },
+  // Same skeleton with a sixteenth pushed in front of the bar line, which is
+  // what makes a track sound like it is accelerating when it is not.
+  drive(step) {
+    const out = DRUMS.four(step);
+    if (step === 15 || step === 7) out.push('kick');
+    return out;
+  },
+  // The kick moves off the grid. Used where the stage itself is not on a grid.
+  broken(step) {
+    const out = [];
+    if (step === 0 || step === 6 || step === 10) out.push('kick');
+    if (step === 4 || step === 12) out.push('clap');
+    if (step % 4 === 2) out.push('open');
+    else if (step % 2 === 1) out.push('hat');
+    return out;
+  },
+  // Everything at once, for the last stage.
+  hammer(step) {
+    const out = DRUMS.four(step);
+    if (step % 2 === 0) out.push('kick');
+    if (step === 14) out.push('clap');
+    return out;
+  },
+};
 
-// Eight eighth-notes per bar, one bar per chord. A dash is a rest.
-const MELODY = [
-  ['D5', 'A4', 'D5', 'F5', 'E5', 'D5', 'A4', '-'],
-  ['A#4', 'D5', 'F5', 'D5', 'C5', 'A#4', 'F4', '-'],
-  ['C5', 'F5', 'A5', 'G5', 'F5', 'C5', 'A4', '-'],
-  ['G4', 'C5', 'E5', 'G5', 'E5', 'C5', 'G4', '-'],
-  ['F5', 'D5', 'A5', 'F5', 'D6', 'A5', 'F5', '-'],
-  ['D5', 'F5', 'A#5', 'A5', 'F5', 'D5', 'A#4', '-'],
-  ['D5', 'G5', 'A#5', 'D6', 'A#5', 'G5', 'D5', '-'],
-  ['C#5', 'E5', 'A5', 'C#6', 'A5', 'E5', 'C#5', '-'],
-];
+/**
+ * The soundtrack: one track per stage, and one for the menu.
+ *
+ * A track is four or eight bars of chords, a melody in eighth notes over them,
+ * and the name of a drum pattern. Everything else - the arpeggio that runs
+ * underneath, the bass, the shape of each note - is worked out from those by
+ * buildSong(), because a chip track is mostly arrangement rather than
+ * composition and the arrangement is the same every time.
+ *
+ * They are meant to be recognisable from about two bars in. You will hear each
+ * of them a great many times, and knowing which stage you are in from the music
+ * alone is worth more than any amount of variation.
+ */
+export const SONGS = {
+  // The menu. The only one that is not in a hurry.
+  title: {
+    bpm: 150,
+    drums: 'four',
+    duty: 0.25,
+    chords: [
+      { bass: 'D2', notes: ['D3', 'F3', 'A3'] },
+      { bass: 'A#1', notes: ['A#2', 'D3', 'F3'] },
+      { bass: 'F2', notes: ['F3', 'A3', 'C4'] },
+      { bass: 'C2', notes: ['C3', 'E3', 'G3'] },
+    ],
+    melody: [
+      ['D5', 'A4', 'D5', 'F5', 'E5', 'D5', 'A4', '-'],
+      ['A#4', 'D5', 'F5', 'D5', 'C5', 'A#4', 'F4', '-'],
+      ['C5', 'F5', 'A5', 'G5', 'F5', 'C5', 'A4', '-'],
+      ['G4', 'C5', 'E5', 'G5', 'E5', 'C5', 'G4', '-'],
+    ],
+  },
 
-/** Per sixteenth: what the lead, arpeggio, bass and drums do. */
-function buildTrack() {
-  const lead = new Array(TOTAL_STEPS).fill(null);
-  const arp = new Array(TOTAL_STEPS).fill(null);
-  const bass = new Array(TOTAL_STEPS).fill(null);
-  const drum = new Array(TOTAL_STEPS).fill(null);
+  // Stage one. Open, hopeful, and the slowest of the five: it is the stage you
+  // are given room to look at, and the music says so.
+  approach: {
+    bpm: 148,
+    drums: 'four',
+    duty: 0.25,
+    chords: [
+      { bass: 'A1', notes: ['A2', 'C3', 'E3'] },
+      { bass: 'F1', notes: ['F2', 'A2', 'C3'] },
+      { bass: 'C2', notes: ['C3', 'E3', 'G3'] },
+      { bass: 'G1', notes: ['G2', 'B2', 'D3'] },
+      { bass: 'A1', notes: ['A2', 'C3', 'E3'] },
+      { bass: 'F1', notes: ['F2', 'A2', 'C3'] },
+      { bass: 'D2', notes: ['D3', 'F3', 'A3'] },
+      { bass: 'E2', notes: ['E3', 'G#3', 'B3'] },
+    ],
+    melody: [
+      ['A4', 'E5', 'A5', 'E5', 'C5', 'E5', 'A4', '-'],
+      ['F4', 'C5', 'F5', 'C5', 'A4', 'C5', 'F4', '-'],
+      ['C5', 'G5', 'C6', 'G5', 'E5', 'G5', 'C5', '-'],
+      ['B4', 'D5', 'G5', 'D5', 'B4', 'G4', 'D4', '-'],
+      ['A4', 'E5', 'A5', 'C6', 'B5', 'A5', 'E5', '-'],
+      ['F4', 'C5', 'F5', 'A5', 'G5', 'F5', 'C5', '-'],
+      ['D5', 'A5', 'D6', 'A5', 'F5', 'D5', 'A4', '-'],
+      ['E5', 'B5', 'E6', 'D6', 'B5', 'G#5', 'E5', '-'],
+    ],
+  },
 
-  for (let bar = 0; bar < BARS; bar++) {
-    const chord = CHORDS[bar];
-    const phrase = MELODY[bar];
+  // Stage two, where the corridor closes in. A semitone that will not resolve,
+  // and the kick pushed in front of the bar.
+  spine: {
+    bpm: 156,
+    drums: 'drive',
+    duty: 0.16,
+    chords: [
+      { bass: 'D2', notes: ['D3', 'F3', 'A3'] },
+      { bass: 'D#2', notes: ['D#3', 'G3', 'A#3'] },
+      { bass: 'D2', notes: ['D3', 'F3', 'A3'] },
+      { bass: 'A1', notes: ['A2', 'C#3', 'E3'] },
+      { bass: 'G1', notes: ['G2', 'A#2', 'D3'] },
+      { bass: 'D#2', notes: ['D#3', 'G3', 'A#3'] },
+      { bass: 'D2', notes: ['D3', 'F3', 'A3'] },
+      { bass: 'A1', notes: ['A2', 'C#3', 'E3'] },
+    ],
+    melody: [
+      ['D5', 'F5', 'A5', 'F5', 'D5', 'A4', 'D5', '-'],
+      ['D#5', 'G5', 'A#5', 'G5', 'D#5', 'A#4', 'D#5', '-'],
+      ['A5', 'F5', 'D5', 'F5', 'A5', 'D6', 'A5', '-'],
+      ['C#5', 'E5', 'A5', 'E5', 'C#5', 'A4', 'E5', '-'],
+      ['D5', 'A#5', 'A5', 'G5', 'F5', 'D5', 'A4', '-'],
+      ['D#5', 'A#5', 'G5', 'D#5', 'A#4', 'G4', 'D#4', '-'],
+      ['F5', 'A5', 'D6', 'A5', 'F5', 'D5', 'A4', '-'],
+      ['E5', 'A5', 'C#6', 'A5', 'E5', 'C#5', 'A4', '-'],
+    ],
+  },
 
-    for (let step = 0; step < STEPS_PER_BAR; step++) {
-      const i = bar * STEPS_PER_BAR + step;
+  // Stage three. Machinery: everything on the grid, nothing decorative, and the
+  // narrowest pulse in the game, which is where the buzz comes from.
+  foundry: {
+    bpm: 162,
+    drums: 'drive',
+    duty: 0.125,
+    chords: [
+      { bass: 'C2', notes: ['C3', 'D#3', 'G3'] },
+      { bass: 'C2', notes: ['C3', 'D#3', 'G3'] },
+      { bass: 'G#1', notes: ['G#2', 'C3', 'D#3'] },
+      { bass: 'A#1', notes: ['A#2', 'D3', 'F3'] },
+      { bass: 'C2', notes: ['C3', 'D#3', 'G3'] },
+      { bass: 'F1', notes: ['F2', 'G#2', 'C3'] },
+      { bass: 'G#1', notes: ['G#2', 'C3', 'D#3'] },
+      { bass: 'G1', notes: ['G2', 'B2', 'D3'] },
+    ],
+    melody: [
+      ['C5', 'C5', 'D#5', 'C5', 'G5', 'C5', 'D#5', '-'],
+      ['C5', 'G4', 'C5', 'D#5', 'F5', 'D#5', 'C5', '-'],
+      ['G#4', 'C5', 'D#5', 'C5', 'G#4', 'D#4', 'G#4', '-'],
+      ['A#4', 'D5', 'F5', 'D5', 'A#4', 'F4', 'A#4', '-'],
+      ['C5', 'D#5', 'G5', 'A#5', 'G5', 'D#5', 'C5', '-'],
+      ['F5', 'G#5', 'C6', 'G#5', 'F5', 'C5', 'G#4', '-'],
+      ['G#5', 'G5', 'F5', 'D#5', 'D5', 'C5', 'G#4', '-'],
+      ['G4', 'B4', 'D5', 'G5', 'D5', 'B4', 'G4', '-'],
+    ],
+  },
 
-      if (step % 2 === 0) {
-        const note = phrase[step / 2];
-        if (note !== '-') lead[i] = { freq: noteFreq(note), dur: STEP * 1.7 };
+  // Stage four. Nothing here moves in a straight line, and neither does the
+  // kick: the pattern is off the grid and the melody floats over the top of it.
+  shoal: {
+    bpm: 152,
+    drums: 'broken',
+    duty: 0.33,
+    chords: [
+      { bass: 'E2', notes: ['E3', 'G3', 'B3'] },
+      { bass: 'C2', notes: ['C3', 'E3', 'G3'] },
+      { bass: 'A1', notes: ['A2', 'C3', 'E3'] },
+      { bass: 'B1', notes: ['B2', 'D#3', 'F#3'] },
+      { bass: 'E2', notes: ['E3', 'G3', 'B3'] },
+      { bass: 'G1', notes: ['G2', 'B2', 'D3'] },
+      { bass: 'A1', notes: ['A2', 'C3', 'E3'] },
+      { bass: 'B1', notes: ['B2', 'D#3', 'F#3'] },
+    ],
+    melody: [
+      ['E5', 'B4', 'G4', 'B4', 'E5', 'G5', 'B5', '-'],
+      ['G5', 'E5', 'C5', 'E5', 'G5', 'C6', 'G5', '-'],
+      ['A5', 'E5', 'C5', 'A4', 'C5', 'E5', 'A5', '-'],
+      ['F#5', 'D#5', 'B4', 'D#5', 'F#5', 'B5', 'F#5', '-'],
+      ['E5', 'G5', 'B5', 'E6', 'B5', 'G5', 'E5', '-'],
+      ['D5', 'G5', 'B5', 'D6', 'B5', 'G5', 'D5', '-'],
+      ['C5', 'E5', 'A5', 'C6', 'A5', 'E5', 'C5', '-'],
+      ['B4', 'D#5', 'F#5', 'B5', 'F#5', 'D#5', 'B4', '-'],
+    ],
+  },
+
+  // Stage five. The fastest, the flattest and the least forgiving: a kick on
+  // every eighth and a melody that keeps landing a semitone from where the
+  // chord wants it.
+  core: {
+    bpm: 168,
+    drums: 'hammer',
+    duty: 0.16,
+    chords: [
+      { bass: 'B1', notes: ['B2', 'D3', 'F#3'] },
+      { bass: 'B1', notes: ['B2', 'D3', 'F#3'] },
+      { bass: 'G1', notes: ['G2', 'A#2', 'D3'] },
+      { bass: 'F#1', notes: ['F#2', 'A#2', 'C#3'] },
+      { bass: 'B1', notes: ['B2', 'D3', 'F#3'] },
+      { bass: 'A1', notes: ['A2', 'C3', 'E3'] },
+      { bass: 'G1', notes: ['G2', 'A#2', 'D3'] },
+      { bass: 'F#1', notes: ['F#2', 'A#2', 'C#3'] },
+    ],
+    melody: [
+      ['B4', 'F#5', 'B5', 'F#5', 'D5', 'F#5', 'B4', '-'],
+      ['C5', 'F#5', 'B5', 'C6', 'B5', 'F#5', 'D5', '-'],
+      ['D5', 'G5', 'A#5', 'D6', 'A#5', 'G5', 'D5', '-'],
+      ['C#5', 'F#5', 'A#5', 'C#6', 'A#5', 'F#5', 'C#5', '-'],
+      ['B5', 'A#5', 'F#5', 'D5', 'F#5', 'A#5', 'B5', '-'],
+      ['A5', 'E5', 'C5', 'E5', 'A5', 'C6', 'A5', '-'],
+      ['G5', 'A#5', 'D6', 'A#5', 'G5', 'D5', 'A#4', '-'],
+      ['F#5', 'A#5', 'C#6', 'F#6', 'C#6', 'A#5', 'F#5', '-'],
+    ],
+  },
+};
+
+/**
+ * A song, as a list of what happens on each sixteenth.
+ *
+ * The arpeggio is the chord cycled one note per sixteenth, which is the trick
+ * that made three voices sound like a band on hardware that only had three. The
+ * bass is on every sixteenth rather than every eighth, which is the difference
+ * between this and the other games' soundtracks: a sixteenth-note bass is
+ * something you are being pushed along by.
+ */
+export function buildSong(def) {
+  const bars = def.chords.length;
+  const step = 60 / def.bpm / 4;
+  const total = bars * STEPS_PER_BAR;
+  const lead = new Array(total).fill(null);
+  const arp = new Array(total).fill(null);
+  const bass = new Array(total).fill(null);
+  const drum = new Array(total).fill(null);
+  const pattern = DRUMS[def.drums] || DRUMS.four;
+
+  for (let bar = 0; bar < bars; bar++) {
+    const chord = def.chords[bar];
+    const phrase = def.melody[bar % def.melody.length];
+    for (let i = 0; i < STEPS_PER_BAR; i++) {
+      const at = bar * STEPS_PER_BAR + i;
+      if (i % 2 === 0) {
+        const note = phrase[i / 2];
+        if (note && note !== '-') lead[at] = { freq: noteFreq(note), dur: step * 1.7 };
       }
-
-      // Arpeggio cycling the chord on every sixteenth: the trick that made three
-      // voices sound like a full band.
-      arp[i] = { freq: noteFreq(chord.notes[step % chord.notes.length]), dur: STEP * 0.85 };
-
-      // Sixteenth-note bass, which is what makes this feel like something you
-      // are being pushed through rather than something you are looking at.
-      bass[i] = { freq: noteFreq(chord.bass), dur: STEP * 0.85 };
-
-      if (step === 0 || step === 7 || step === 10) drum[i] = 'kick';
-      else if (step === 4 || step === 12) drum[i] = 'snare';
-      else if (step % 2 === 0) drum[i] = 'hat';
+      arp[at] = { freq: noteFreq(chord.notes[i % chord.notes.length]), dur: step * 0.8 };
+      bass[at] = { freq: noteFreq(chord.bass), dur: step * 0.8 };
+      drum[at] = pattern(i);
     }
   }
   return {
-    lead, arp, bass, drum, steps: TOTAL_STEPS, step: STEP,
+    lead, arp, bass, drum, steps: total, step, duty: def.duty ?? 0.25,
   };
 }
 
-export const TRACK = buildTrack();
+const built = new Map();
+
+/** One song, built once. Falls back to the menu track for anything unknown. */
+export function song(name) {
+  const key = SONGS[name] ? name : 'title';
+  if (!built.has(key)) built.set(key, buildSong(SONGS[key]));
+  return built.get(key);
+}
 
 /** A pulse wave of the given duty cycle, which is what gives it the bite. */
 function pulseWave(ctx, duty, harmonics = 24) {
@@ -126,13 +322,19 @@ export class AudioEngine {
       this.master = this.ctx.createGain();
       this.master.gain.value = 0.22;
       this.master.connect(this.ctx.destination);
-      this.leadWave = pulseWave(this.ctx, 0.25);
-      this.arpWave = pulseWave(this.ctx, 0.125);
+      this.waves = new Map();
+      this.arpWave = this.pulse(0.125);
       this.noise = this.makeNoise(0.5);
       this.longNoise = this.makeNoise(3.2);
     }
     this.ctx.resume?.();
     return this.ctx;
+  }
+
+  /** A pulse wave of a given duty, built once. Each song has its own. */
+  pulse(duty) {
+    if (!this.waves.has(duty)) this.waves.set(duty, pulseWave(this.ctx, duty));
+    return this.waves.get(duty);
   }
 
   makeNoise(seconds) {
@@ -198,29 +400,59 @@ export class AudioEngine {
   }
 }
 
+/**
+ * The soundtrack, playing.
+ *
+ * Two clocks: a coarse interval that keeps topping up what the audio clock -
+ * which is the accurate one - is going to play next. That is the standard way to
+ * sequence anything in a browser, because setInterval is nowhere near steady
+ * enough to put a kick drum on.
+ *
+ * It has its own gain, and that is not decoration: the music plays under the
+ * game now rather than only in the menu, and a chip track mixed for a title
+ * screen is a chip track that buries the sound of being shot. It ducks when a
+ * stage starts and comes back up in the menu.
+ */
 export class Chiptune {
   constructor(engine) {
     this.engine = engine;
     this.playing = false;
     this.timer = null;
+    this.name = null;
+    this.song = null;
     this.stepIndex = 0;
     this.nextStepTime = 0;
+    this.level = 1;
   }
 
-  start() {
-    if (this.playing) return;
+  /**
+   * Plays a named song, switching if something else is already going.
+   *
+   * A switch is a cut rather than a fade. It only ever happens at a stage
+   * boundary, where the screen is showing a stage name and holding still, and a
+   * crossfade between two tracks in different keys at different tempos sounds
+   * like a mistake rather than like a transition.
+   */
+  play(name) {
+    if (this.playing && this.name === name) return;
+    this.name = name;
+    this.song = song(name);
     if (!this.engine.wake()) return;
     this.ctx = this.engine.ctx;
-    this.master = this.engine.master;
-    this.leadWave = this.engine.leadWave;
+    this.leadWave = this.engine.pulse(this.song.duty);
     this.arpWave = this.engine.arpWave;
     this.noise = this.engine.noise;
-    this.playing = true;
+    if (!this.out) {
+      this.out = this.ctx.createGain();
+      this.out.gain.value = this.level;
+      this.out.connect(this.engine.master);
+    }
     this.stepIndex = 0;
-    this.nextStepTime = this.ctx.currentTime + 0.08;
-    // Two clocks: a coarse timer that keeps topping up what the audio clock,
-    // which is the accurate one, is going to play next.
-    this.timer = setInterval(() => this.schedule(), 25);
+    this.nextStepTime = this.ctx.currentTime + 0.06;
+    if (!this.playing) {
+      this.playing = true;
+      this.timer = setInterval(() => this.schedule(), 25);
+    }
     this.schedule();
   }
 
@@ -233,34 +465,42 @@ export class Chiptune {
   }
 
   toggle(on) {
-    if (on) this.start();
+    if (on) this.play(this.name || 'title');
     else this.stop();
   }
 
+  /** How loud the music sits under everything else. */
+  duck(level) {
+    this.level = level;
+    if (this.out) this.out.gain.setTargetAtTime(level, this.ctx.currentTime, 0.25);
+  }
+
   schedule() {
-    if (!this.playing) return;
+    if (!this.playing || !this.song) return;
     const lookahead = 0.25;
     while (this.nextStepTime < this.ctx.currentTime + lookahead) {
       this.playStep(this.stepIndex, this.nextStepTime);
-      this.nextStepTime += TRACK.step;
-      this.stepIndex = (this.stepIndex + 1) % TRACK.steps;
+      this.nextStepTime += this.song.step;
+      this.stepIndex = (this.stepIndex + 1) % this.song.steps;
     }
   }
 
   playStep(i, at) {
-    const lead = TRACK.lead[i];
-    if (lead) this.tone(lead.freq, at, lead.dur, this.leadWave, 0.26);
+    const lead = this.song.lead[i];
+    if (lead) this.tone(lead.freq, at, lead.dur, this.leadWave, 0.24);
 
-    const arp = TRACK.arp[i];
-    if (arp) this.tone(arp.freq, at, arp.dur, this.arpWave, 0.08);
+    const arp = this.song.arp[i];
+    if (arp) this.tone(arp.freq, at, arp.dur, this.arpWave, 0.07);
 
-    const bass = TRACK.bass[i];
-    if (bass) this.tone(bass.freq, at, bass.dur, 'triangle', 0.4);
+    const bass = this.song.bass[i];
+    if (bass) this.tone(bass.freq, at, bass.dur, 'triangle', 0.34);
 
-    const drum = TRACK.drum[i];
-    if (drum === 'kick') this.kick(at);
-    else if (drum === 'snare') this.hit(at, 1500, 0.15, 0.26);
-    else if (drum === 'hat') this.hit(at, 7600, 0.035, 0.06);
+    for (const hit of this.song.drum[i] || []) {
+      if (hit === 'kick') this.kick(at);
+      else if (hit === 'clap') this.clap(at);
+      else if (hit === 'open') this.hit(at, 6200, 0.14, 0.05);
+      else if (hit === 'hat') this.hit(at, 8200, 0.03, 0.05);
+    }
   }
 
   tone(freq, at, dur, wave, level) {
@@ -272,22 +512,35 @@ export class Chiptune {
     // Hard on, quick decay: no envelope knobs on those chips either.
     gain.gain.setValueAtTime(level, at);
     gain.gain.exponentialRampToValueAtTime(0.0001, at + dur);
-    osc.connect(gain).connect(this.master);
+    osc.connect(gain).connect(this.out);
     osc.start(at);
     osc.stop(at + dur + 0.02);
   }
 
+  /** Longer and lower than the other games': this one is the pulse of the track. */
   kick(at) {
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(160, at);
-    osc.frequency.exponentialRampToValueAtTime(44, at + 0.11);
-    gain.gain.setValueAtTime(0.62, at);
-    gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.14);
-    osc.connect(gain).connect(this.master);
+    osc.frequency.setValueAtTime(180, at);
+    osc.frequency.exponentialRampToValueAtTime(42, at + 0.09);
+    gain.gain.setValueAtTime(0.7, at);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.2);
+    osc.connect(gain).connect(this.out);
     osc.start(at);
-    osc.stop(at + 0.16);
+    osc.stop(at + 0.22);
+  }
+
+  /**
+   * A clap rather than a snare, which is most of what says techno instead of
+   * rock. Three bursts a few milliseconds apart and a longer tail - a clap is a
+   * lot of people not quite together, and that is exactly how it is built.
+   */
+  clap(at) {
+    for (const [delay, level, dur] of [[0, 0.2, 0.02], [0.011, 0.16, 0.02],
+      [0.022, 0.24, 0.13]]) {
+      this.hit(at + delay, 1900, dur, level);
+    }
   }
 
   hit(at, freq, dur, level) {
@@ -299,7 +552,7 @@ export class Chiptune {
     const gain = this.ctx.createGain();
     gain.gain.setValueAtTime(level, at);
     gain.gain.exponentialRampToValueAtTime(0.0001, at + dur);
-    src.connect(band).connect(gain).connect(this.master);
+    src.connect(band).connect(gain).connect(this.out);
     src.start(at);
     src.stop(at + dur + 0.02);
   }

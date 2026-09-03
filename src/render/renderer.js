@@ -229,7 +229,7 @@ export class Renderer {
         (Math.random() - 0.5) * this.fx.shake,
       );
     }
-    ctx.translate(-state.scroll, 0);
+    ctx.translate(-state.scroll, -state.scrollY);
 
     this.sky(state, theme);
     this.starfield(state, theme);
@@ -261,12 +261,13 @@ export class Renderer {
 
   sky(state, theme) {
     const ctx = this.ctx;
-    const g = ctx.createLinearGradient(0, 0, 0, VIEW_H);
+    const top = state.scrollY;
+    const g = ctx.createLinearGradient(0, top, 0, top + VIEW_H);
     g.addColorStop(0, theme.sky);
     g.addColorStop(0.55, theme.far);
     g.addColorStop(1, theme.sky);
     ctx.fillStyle = g;
-    ctx.fillRect(state.scroll, 0, VIEW_W, VIEW_H);
+    ctx.fillRect(state.scroll, top, VIEW_W, VIEW_H);
   }
 
   starfield(state, theme) {
@@ -279,16 +280,23 @@ export class Renderer {
       // The band repeats, so the whole field is a modulo rather than a list that
       // has to be topped up.
       const shift = (state.scroll * depth) % span;
+      // The sky parallaxes vertically too, and it has to: on a stage that
+      // climbs, a starfield that did not move with the camera would be the one
+      // thing telling you that you are not really going anywhere.
+      const shiftY = (state.scrollY * depth) % VIEW_H;
       ctx.fillStyle = theme.star;
       for (const s of this.stars[layer]) {
         let x = s.x - shift;
         if (x < 0) x += span;
         if (x > VIEW_W) continue;
+        let y = s.y - shiftY;
+        if (y < 0) y += VIEW_H;
+        if (y > VIEW_H) y -= VIEW_H;
         // A slow twinkle, out of phase per star, so the sky is not a grid of
         // identical dots.
         const twinkle = 0.5 + 0.5 * Math.sin(this.frame * 0.03 + s.t * 9);
         ctx.globalAlpha = (0.2 + depth) * (0.55 + twinkle * 0.45);
-        ctx.fillRect(state.scroll + x, s.y, s.r, s.r);
+        ctx.fillRect(state.scroll + x, state.scrollY + y, s.r, s.r);
       }
     }
     ctx.restore();
@@ -310,32 +318,42 @@ export class Renderer {
     ctx.fillStyle = theme.near;
     ctx.globalAlpha = 0.5;
     const lag = state.scroll * 0.45;
+    const top = state.scrollY;
+    const bottom = state.scrollY + VIEW_H;
+    // Pulled towards the middle of the corridor rather than towards the middle
+    // of the world. They are the same thing on a flat stage and three hundred
+    // units apart in the middle of a shaft, and using the world would leave the
+    // far wall behind on the climb.
     ctx.beginPath();
-    ctx.moveTo(state.scroll, 0);
+    ctx.moveTo(state.scroll, top);
     for (let i = from; i <= to; i++) {
       const src = Math.min(t.count - 1, Math.max(0, i - Math.round(lag / STEP)));
-      ctx.lineTo(i * STEP, t.ceil[src] * 0.72 + 6);
+      ctx.lineTo(i * STEP, t.mid[src] + (t.ceil[src] - t.mid[src]) * 0.72 + 6);
     }
-    ctx.lineTo(state.scroll + VIEW_W, 0);
+    ctx.lineTo(state.scroll + VIEW_W, top);
     ctx.closePath();
     ctx.fill();
     ctx.beginPath();
-    ctx.moveTo(state.scroll, VIEW_H);
+    ctx.moveTo(state.scroll, bottom);
     for (let i = from; i <= to; i++) {
       const src = Math.min(t.count - 1, Math.max(0, i - Math.round(lag / STEP)));
-      ctx.lineTo(i * STEP, VIEW_H - (VIEW_H - t.floor[src]) * 0.72 - 6);
+      ctx.lineTo(i * STEP, t.mid[src] + (t.floor[src] - t.mid[src]) * 0.72 - 6);
     }
-    ctx.lineTo(state.scroll + VIEW_W, VIEW_H);
+    ctx.lineTo(state.scroll + VIEW_W, bottom);
     ctx.closePath();
     ctx.fill();
     ctx.globalAlpha = 1;
 
     for (const side of ['ceil', 'floor']) {
       const surface = t[side];
+      // Closed off the top or the bottom of the picture, wherever the picture
+      // currently is - the rock has to reach the edge of the screen whatever the
+      // camera has climbed to.
+      const edge = side === 'ceil' ? state.scrollY - 400 : state.scrollY + VIEW_H + 400;
       ctx.beginPath();
-      ctx.moveTo(state.scroll - 8, side === 'ceil' ? -20 : VIEW_H + 20);
+      ctx.moveTo(state.scroll - 8, edge);
       for (let i = from; i <= to; i++) ctx.lineTo(i * STEP, surface[i]);
-      ctx.lineTo(state.scroll + VIEW_W + 8, side === 'ceil' ? -20 : VIEW_H + 20);
+      ctx.lineTo(state.scroll + VIEW_W + 8, edge);
       ctx.closePath();
       ctx.fillStyle = theme.rock;
       ctx.fill();

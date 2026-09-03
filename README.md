@@ -190,12 +190,41 @@ That is deliberate, and it is what makes room for the divers: something that
 arrives out of the background instead of in from the edge needs somewhere to
 arrive.
 
+**And the foundry goes up.** Twice, the corridor stops running to the right and
+turns: it climbs three hundred and twenty units, sits on a landing for a while,
+and comes back down. The camera follows the middle of the corridor, so for those
+few seconds the picture is moving up the screen rather than across it, and
+getting to the top is the thing you are doing. The horizontal scroll slows in
+proportion to how steeply the corridor is climbing, which is the one line that
+makes a shaft feel like a shaft rather than like a diagonal taken at speed: the
+camera covers the corridor at the same rate whichever way it happens to be
+pointing, so what changes is the direction, not the pace.
+
+It is still a shooter and not a platform game, and two rules keep it that way.
+How steep a shaft may be is set by the gun rather than by taste — the gun points
+one way, and a shot fired from the middle of a corridor climbing at slope *m*
+meets the wall after half the gap over *m*. The first version of this climbed at
+a slope of 2.2 and left seventy units of air in front of you: you were firing
+into rock from the moment it began. Held to about five sixths, there are a
+hundred and eight units of clear air ahead everywhere in the stage, and there is
+a test that says so about every stage in the game. And a shaft is 251 units
+across where the flat parts of the same stage pinch to 108, so there is room to
+sit wherever you like while the world goes past.
+
+Nothing that flies is scripted inside a shaft, only guns bolted into the walls.
+A flyer is created just off the right-hand edge of the picture, and while the
+corridor is turning, the corridor *there* is hundreds of units above or below
+anything anybody can see.
+
+![The corridor turns and climbs, and the picture goes up with it](docs/screenshots/climb.png)
+
 ![The second stage, with the same ship still carrying what it found in the first](docs/screenshots/spine.png)
 
 ## What the picture is
 
 The playfield is a fixed 480 by 270 world units on every machine, letterboxed
-into whatever window it is given. This is the one place webtype does the opposite
+into whatever window it is given. Where it is *looking* can move — see the
+foundry, which climbs — but how much of the world you can see never does. This is the one place webtype does the opposite
 of what [webracing](https://github.com/markclausing/webracing) does, which fits
 its camera to the window: a wider window in a shooter means seeing an enemy
 sooner, and a game where the size of your monitor decides whether you survive is

@@ -289,6 +289,23 @@ async function main() {
     await sleep(500);
     await dev.shot('spine');
 
+    // --- The stage that turns -----------------------------------------------
+    console.log('the climb');
+    await dev.run(until('play', 60 * 60));
+    await dev.run(advance(360));
+    await dev.run(`(async () => {
+      const g = window.__game;
+      const at = (f) => new URL(f, location.href).href;
+      const { nextStage } = await import(at('src/game/state.js'));
+      nextStage(g.state);
+      return g.state.stage.key;
+    })()`);
+    // Far enough into the foundry for the corridor to have turned and be going
+    // up, which is the thing worth a picture.
+    await dev.run(advance(60 * 26));
+    await sleep(500);
+    await dev.shot('climb');
+
     // --- Scores, and the board they land on ---------------------------------
     //
     // Three runs rather than one, so the board in the picture is a board rather

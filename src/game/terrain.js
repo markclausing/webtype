@@ -49,6 +49,11 @@ export function buildTerrain(frames, length, rough = 1) {
   const count = Math.ceil(length / STEP) + 2;
   const ceil = new Float64Array(count);
   const floor = new Float64Array(count);
+  // Where the middle of the corridor is. On most stages this hovers around the
+  // middle of the screen and nothing ever asks; on a stage that climbs it is
+  // what the camera follows, and it is what a wave written at a height is
+  // measured from.
+  const mid = new Float64Array(count);
 
   let at = 0;
   for (let i = 0; i < count; i++) {
@@ -67,10 +72,20 @@ export function buildTerrain(frames, length, rough = 1) {
     // narrows the corridor can close a gap the stage was designed around, and a
     // stage that is impossible on some machines' arithmetic is worse than a
     // stage that looks slightly flatter than it might have.
-    ceil[i] = Math.max(0, c - Math.abs(ripple(i, 0.3)) * rough);
-    floor[i] = Math.min(VIEW_H, f + Math.abs(ripple(i, 2.4)) * rough);
+    //
+    // Neither surface is clamped to the screen any more. A corridor is allowed
+    // to be anywhere in the world, above the top of the view or below the
+    // bottom of it, because on a climbing stage that is exactly what it does -
+    // and the camera goes with it. The clamps never actually bit on the flat
+    // stages anyway: the deepest ripple is seven units and the tightest frame
+    // is twelve from the edge.
+    ceil[i] = c - Math.abs(ripple(i, 0.3)) * rough;
+    floor[i] = f + Math.abs(ripple(i, 2.4)) * rough;
+    mid[i] = (ceil[i] + floor[i]) / 2;
   }
-  return { ceil, floor, count, length };
+  return {
+    ceil, floor, mid, count, length,
+  };
 }
 
 /** Where the two surfaces are at a given world x, interpolated between samples. */
@@ -105,6 +120,35 @@ export function inRock(terrain, x, y, r = 0) {
 export function rockNormal(terrain, x, y) {
   const { ceil, floor } = surfaceAt(terrain, x);
   return y - ceil < floor - y ? 1 : -1;
+}
+
+/**
+ * How far the corridor has wandered from the middle of the screen at this point.
+ *
+ * Zero on a flat stage, and hundreds of units on one that climbs. Two things use
+ * it: the camera, which follows it so that a corridor going up takes the picture
+ * with it, and the stage script, which measures a wave's height from the middle
+ * of the corridor rather than from the top of the world - a wave written at 90
+ * means the same thing whether the corridor is where it started or four hundred
+ * units above it.
+ */
+export function liftAt(terrain, x) {
+  const t = x / STEP;
+  const i = Math.floor(t);
+  if (i < 0) return terrain.mid[0] - VIEW_H / 2;
+  if (i >= terrain.count - 1) return terrain.mid[terrain.count - 1] - VIEW_H / 2;
+  const f = t - i;
+  return terrain.mid[i] + (terrain.mid[i + 1] - terrain.mid[i]) * f - VIEW_H / 2;
+}
+
+/**
+ * How steeply the corridor is climbing here, as a slope.
+ *
+ * Nought is flat and three is very nearly a shaft. It is what slows the
+ * horizontal scroll on a climbing stage: see scrollAt() in stages.js.
+ */
+export function slopeAt(terrain, x, over = 40) {
+  return (liftAt(terrain, x + over) - liftAt(terrain, x - over)) / (over * 2);
 }
 
 /** How much room there is between the two surfaces. Used to place things fairly. */

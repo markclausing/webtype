@@ -15,8 +15,10 @@ import {
   coreOpen, createRun, formatScore, hashState, stageLabel,
 } from '../src/game/state.js';
 import { step } from '../src/game/sim.js';
-import { STAGES, STAGE_KEYS, loadStage, loopOf, stageIndex } from '../src/game/stages.js';
-import { STEP, gapAt, inRock, surfaceAt } from '../src/game/terrain.js';
+import {
+  STAGES, STAGE_KEYS, loadStage, loopOf, scrollAt, stageIndex,
+} from '../src/game/stages.js';
+import { STEP, gapAt, inRock, liftAt, slopeAt, surfaceAt } from '../src/game/terrain.js';
 import { FOES, FOE_KEYS, arrived } from '../src/game/foes.js';
 import { chargeLevel, stepShot } from '../src/game/weapons.js';
 import { demoMask } from '../src/demo.js';
@@ -959,6 +961,157 @@ console.log('\nThe third dimension:');
     `the shoal is the most open stage: ${gaps.map((g) => Math.round(g)).join(', ')}`);
   check(gaps[shoal] > VIEW_H * 0.75,
     'and open enough that up and down is barely constrained at all');
+}
+
+// --- The stage that goes up --------------------------------------------------
+
+console.log('\nClimbing:');
+{
+  const climbers = STAGES.filter((st) => st.climbs);
+  check(climbers.length === 1, `exactly one stage climbs: ${climbers.map((c) => c.name)}`);
+
+  const stage = loadStage(STAGE_KEYS.indexOf(climbers[0].key));
+  let highest = 0;
+  let steepest = 0;
+  for (let x = 0; x < stage.length; x += 8) {
+    highest = Math.min(highest, liftAt(stage.terrain, x));
+    steepest = Math.max(steepest, Math.abs(slopeAt(stage.terrain, x)));
+  }
+  check(highest < -250,
+    `it climbs ${Math.round(-highest)} units, which is more than a screenful`);
+  check(steepest > 1,
+    `and at its steepest the corridor is going up faster than along (slope ${steepest.toFixed(1)})`);
+
+  // The one thing that keeps this a shooter. A shaft has to be somewhere you
+  // can still sit and aim, not a gap to be threaded.
+  let inShaft = Infinity;
+  let onTheFlat = Infinity;
+  for (let x = 0; x < stage.length; x += 8) {
+    const gap = gapAt(stage.terrain, x);
+    if (Math.abs(slopeAt(stage.terrain, x)) > 0.7) inShaft = Math.min(inShaft, gap);
+    else onTheFlat = Math.min(onTheFlat, gap);
+  }
+  check(inShaft > VIEW_H * 0.8,
+    `the shafts are ${Math.round(inShaft)} units across - room to position and shoot`);
+  check(inShaft < VIEW_H,
+    'and still narrow enough that you can see both walls of one');
+  check(inShaft > onTheFlat,
+    `and wider than the flat parts of the same stage (${Math.round(onTheFlat)})`);
+
+  // The rule that keeps a climb a shooter rather than a platform game: there
+  // has to be air in front of you to fire into. The gun only points one way, and
+  // a shot from the middle of a corridor climbing at slope m meets the wall
+  // after half the gap over m - so how steep a shaft is allowed to be is set by
+  // the gun, not by taste. Checked on every stage, because it is a property of
+  // the game rather than of this one.
+  for (let n = 0; n < STAGES.length; n++) {
+    const st = loadStage(n);
+    let ahead = Infinity;
+    for (let x = 40; x < st.length; x += 8) {
+      const at = surfaceAt(st.terrain, x);
+      const mid = (at.ceil + at.floor) / 2;
+      let d = 0;
+      while (d < 400 && !inRock(st.terrain, x + d, mid, 0)) d += 4;
+      ahead = Math.min(ahead, d);
+    }
+    check(ahead >= 100,
+      `${st.name}: at least ${ahead} units of clear air straight ahead, everywhere`);
+  }
+
+  // Nothing that flies may be written into a shaft. A flyer is created at the
+  // right-hand edge of the picture, and on a climb the corridor there is
+  // hundreds of units above or below anything anybody can see - so it would
+  // spawn out of sight and fly straight past out of sight. Only things bolted to
+  // the rock hold station with a corridor that is turning.
+  const inside = stage.script.filter((e) => Math.abs(slopeAt(stage.terrain, e.at)) > 0.7);
+  const flying = inside.filter((e) => e.kind !== 'gift' && e.y !== 'floor' && e.y !== 'ceil');
+  check(flying.length === 0,
+    `nothing that flies is scripted inside a shaft${flying.length ? `: ${flying.map((e) => e.at + ':' + e.kind)}` : ''}`);
+  check(inside.length > 0, `and ${inside.length} things are bolted to the walls of one`);
+
+  // The horizontal scroll slows where the corridor turns, so the camera covers
+  // the corridor at a steady rate whichever way it happens to be pointing.
+  const along = (x) => {
+    const m = slopeAt(stage.terrain, x);
+    return scrollAt(stage, x) * Math.sqrt(1 + m * m);
+  };
+  // Found rather than typed in: the steepest point moves whenever the shaft is
+  // reshaped, and a test that hardcoded it failed the first time it was.
+  let at = 0;
+  for (let x = 40; x < stage.length; x += 8) {
+    if (Math.abs(slopeAt(stage.terrain, x)) > Math.abs(slopeAt(stage.terrain, at))) at = x;
+  }
+  check(scrollAt(stage, at) < scrollAt(stage, 600) * 0.7,
+    `the corridor goes past sideways at ${scrollAt(stage, at).toFixed(0)} in the shaft `
+    + `against ${scrollAt(stage, 600).toFixed(0)} on the flat`);
+  check(Math.abs(along(at) - along(600)) / along(600) < 0.02,
+    'but the camera covers the corridor at the same rate either way');
+}
+{
+  // Flown for real: the camera has to actually take the picture up there, and
+  // the ship has to be allowed to follow it and not allowed to stay behind.
+  const state = createRun({ seed: 7, stage: STAGE_KEYS.indexOf('foundry'), skill: 'easy' });
+  let top = 0;
+  let shipTop = 0;
+  let outside = 0;
+  let spawnedInRock = 0;
+  // How much of the corridor is visible where the ship is, and where in the
+  // picture the ship ends up. Both are how a camera on a climbing stage goes
+  // wrong: read too far ahead and the corridor slides off the bottom of the
+  // screen with the ship pinned to the edge of it.
+  let worst = Infinity;
+  let low = 1;
+  let high = 0;
+  while (state.scroll < 1600 && state.tick < MAX) {
+    for (const ship of state.ships) {
+      ship.hull = 99;
+      ship.invuln = 2;
+    }
+    const before = state.foes.length;
+    step(state, [demoMask(state, 0), 0]);
+    top = Math.min(top, state.scrollY);
+    shipTop = Math.min(shipTop, state.ships[0].y);
+    // The ship must always be inside the picture, wherever the picture is.
+    for (const ship of state.ships) {
+      if (ship.y < state.scrollY - 1 || ship.y > state.scrollY + VIEW_H + 1) outside++;
+    }
+    for (let i = before; i < state.foes.length; i++) {
+      const foe = state.foes[i];
+      if (foe.def.clings) continue;
+      if (inRock(state.stage.terrain, foe.x, foe.y, 0)) spawnedInRock++;
+    }
+    if (Math.abs(slopeAt(state.stage.terrain, state.scroll + VIEW_W * 0.28)) > 0.7) {
+      const at = surfaceAt(state.stage.terrain, state.ships[0].x);
+      const seen = Math.min(state.scrollY + VIEW_H, at.floor) - Math.max(state.scrollY, at.ceil);
+      worst = Math.min(worst, seen);
+      const where = (state.ships[0].y - state.scrollY) / VIEW_H;
+      low = Math.min(low, where);
+      high = Math.max(high, where);
+    }
+  }
+  check(top < -250, `flown for real, the camera reaches ${Math.round(top)}`);
+  check(shipTop < -200, `and the ship goes up there with it, to ${Math.round(shipTop)}`);
+  check(outside === 0, 'the ship is never outside the picture');
+  check(spawnedInRock === 0, 'and nothing is ever spawned inside the rock');
+  check(worst > VIEW_H * 0.7,
+    `and at the steepest point ${Math.round(worst)} units of the corridor are still on screen`);
+  check(low < 0.8 && high > 0.2,
+    `the ship is not pinned to an edge on the way up (${Math.round(low * 100)}% to `
+    + `${Math.round(high * 100)}% of the picture)`);
+}
+{
+  // Every other stage still looks straight ahead.
+  for (const key of STAGE_KEYS) {
+    if (key === 'foundry') continue;
+    const state = createRun({ seed: 3, stage: STAGE_KEYS.indexOf(key), skill: 'easy' });
+    let moved = 0;
+    while (state.scroll < 1500 && state.tick < MAX) {
+      for (const ship of state.ships) ship.invuln = 2;
+      step(state, [0, 0]);
+      moved = Math.max(moved, Math.abs(state.scrollY));
+    }
+    check(moved === 0, `${key} keeps the camera where it was`);
+  }
 }
 
 // --- Every boss belongs to its stage -----------------------------------------

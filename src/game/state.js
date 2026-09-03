@@ -49,6 +49,18 @@ export function createRun(options = {}) {
     stage: loadStage(opts.stage),
     /** How far the corridor has gone past. The only clock the stage script has. */
     scroll: 0,
+    /**
+     * And how far up or down the picture has been carried with it.
+     *
+     * Nought on every stage but one. The foundry turns and climbs, and the
+     * camera follows the middle of the corridor, so for a few seconds at a time
+     * the world moves up the screen instead of across it. It is derived from
+     * `scroll` by a pure function rather than integrated, so it cannot drift
+     * apart between two machines however long a run goes on.
+     */
+    scrollY: 0,
+    /** How fast the corridor is going past right now; see scrollAt(). */
+    scrollSpeed: 0,
     /** How much of the script has been spawned. The script is in order of `at`. */
     cursor: 0,
     /** Ids are handed out from here, so two machines name the same thing alike. */
@@ -139,6 +151,8 @@ export function nextStage(state) {
   state.stagesCleared++;
   state.stage = loadStage(state.stageNumber);
   state.scroll = 0;
+  state.scrollY = 0;
+  state.scrollSpeed = 0;
   state.cursor = 0;
   state.foes.length = 0;
   state.shots.length = 0;
@@ -213,6 +227,7 @@ export function hashState(state) {
   };
   mix(state.tick);
   mix(state.scroll);
+  mix(state.scrollY);
   mix(state.score);
   mix(state.cursor);
   mix(state.phase === 'play' ? 1 : state.phase === 'boss' ? 2 : state.phase === 'ready' ? 3 : 4);

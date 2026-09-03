@@ -17,7 +17,7 @@
 import {
   DIVER_HERE, DIVER_HOLD, DIVER_RISE, DIVER_SINK, DIVER_TRACK, DT, VIEW_H, VIEW_W,
 } from '../constants.js';
-import { surfaceAt } from './terrain.js';
+import { liftAt, surfaceAt } from './terrain.js';
 
 /** The nearest ship still flying, or null if there is nobody left to chase. */
 export function target(state, from) {
@@ -253,8 +253,8 @@ export const FOES = {
 
       // It hangs in the corridor rather than flying down it, so it holds station
       // with the scroll and arrives at you at walking pace.
-      if (state.phase === 'play') foe.x += state.stage.scroll * DT;
-      foe.y = Math.max(14, Math.min(VIEW_H - 14, foe.y));
+      if (state.phase === 'play') foe.x += state.scrollSpeed * DT;
+      foe.y = Math.max(state.scrollY + 14, Math.min(state.scrollY + VIEW_H - 14, foe.y));
     },
   },
 
@@ -324,11 +324,26 @@ export function arrived(foe) {
 /** Every kind, for the tests to walk. */
 export const FOE_KEYS = Object.keys(FOES);
 
-/** How far off the right-hand edge a spawn appears, and how far down. */
-export function placeY(state, entry) {
+/**
+ * Where a scripted wave actually appears, at the point it appears.
+ *
+ * A height in a stage script is measured from the middle of the corridor rather
+ * than from the top of the world, which matters on a stage that climbs: a wave
+ * written at 90 means the same thing whether the corridor is where it started
+ * or three hundred units above it. Then it is clamped inside the rock, because
+ * a wave written for a wide part of a stage should not spawn inside the wall
+ * when the corridor has narrowed under it.
+ *
+ * Measured at the spawn point rather than at the mark the wave was written at.
+ * Those are the same place for anything bolted to the rock and a screen apart
+ * for anything that flies, and using the wrong one put flyers in the wall.
+ */
+export function placeY(state, entry, x = entry.at) {
+  const at = surfaceAt(state.stage.terrain, x);
   if (entry.y === 'floor' || entry.y === 'ceil') {
-    const at = surfaceAt(state.stage.terrain, entry.at);
     return entry.y === 'ceil' ? at.ceil : at.floor;
   }
-  return Math.max(10, Math.min(VIEW_H - 10, entry.y));
+  const want = entry.y + liftAt(state.stage.terrain, x);
+  const room = Math.min(12, Math.max(0, (at.floor - at.ceil) / 2 - 2));
+  return Math.max(at.ceil + room, Math.min(at.floor - room, want));
 }

@@ -69,7 +69,7 @@ export function demoMask(state, seat = 0, style = 0) {
     }
   }
 
-  let toY = VIEW_H / 2 + Math.sin(state.tick * 0.011 + seat * 2) * 46;
+  let toY = state.scrollY + VIEW_H / 2 + Math.sin(state.tick * 0.011 + seat * 2) * 46;
   let toX = state.scroll + VIEW_W * (0.26 + seat * 0.06);
   if (want) {
     toY = want.y;

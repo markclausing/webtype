@@ -19,7 +19,7 @@
 import {
   LOOP_CROWD, LOOP_QUIET, QUIET_FLOOR, QUIET_RUN, SCROLL_SPEED, VIEW_H, VIEW_W,
 } from '../constants.js';
-import { buildTerrain } from './terrain.js';
+import { buildTerrain, slopeAt } from './terrain.js';
 
 /** How far off the right-hand edge something is created. */
 export const SPAWN_MARGIN = 26;
@@ -145,15 +145,15 @@ const s3 = [
   ...gift(760, 'yellow', 150),
   ...wave(900, 'walker', { y: 'floor' }),
   ...wave(960, 'walker', { y: 'floor' }),
-  ...wave(1140, 'drone', { y: 60, n: 7, spacing: 30 }),
-  ...wave(1380, 'carrier', { y: 190, give: 'speed' }),
+  ...wave(840, 'drone', { y: 60, n: 7, spacing: 30 }),
+  ...wave(1720, 'carrier', { y: 190, give: 'speed' }),
   ...wave(1580, 'turret', { y: 'ceil' }),
   ...wave(1640, 'turret', { y: 'ceil' }),
   ...wave(1700, 'turret', { y: 'floor' }),
   ...wave(1880, 'mine', { y: 110, n: 8, spacing: 32 }),
   ...wave(2140, 'snake', { y: 135, len: 9 }),
   ...gift(2380, 'missile', 100),
-  ...wave(2500, 'swoop', { y: 210, n: 6, spacing: 34 }),
+  ...wave(2820, 'swoop', { y: 210, n: 6, spacing: 34 }),
   ...wave(2740, 'orb', { y: 90, give: 'yellow' }),
   ...wave(2760, 'orb', { y: 190, give: 'red' }),
   ...wave(3000, 'walker', { y: 'ceil' }),
@@ -162,22 +162,31 @@ const s3 = [
   ...wave(3460, 'turret', { y: 'floor' }),
   ...wave(3520, 'turret', { y: 'ceil' }),
   ...wave(1040, 'swoop', { y: 150, n: 4, spacing: 34 }),
-  ...wave(1280, 'mine', { y: 100, n: 4, spacing: 34 }),
-  ...wave(1500, 'drone', { y: 180, n: 5, spacing: 28 }),
+  ...wave(1640, 'mine', { y: 100, n: 4, spacing: 34 }),
+  ...wave(1840, 'drone', { y: 180, n: 5, spacing: 28 }),
   ...wave(1780, 'swoop', { y: 120, n: 5, spacing: 32 }),
   ...wave(2000, 'drone', { y: 170, n: 6, spacing: 26 }),
-  ...wave(2260, 'mine', { y: 110, n: 5, spacing: 32 }),
+  ...wave(2700, 'mine', { y: 110, n: 5, spacing: 32 }),
   ...wave(2620, 'drone', { y: 150, n: 7, spacing: 24 }),
   ...wave(2880, 'swoop', { y: 90, n: 5, spacing: 30 }),
   ...wave(3140, 'mine', { y: 140, n: 6, spacing: 30 }),
   ...wave(3380, 'drone', { y: 110, n: 7, spacing: 24 }),
   ...wave(3560, 'swoop', { y: 160, n: 6, spacing: 28 }),
   ...wave(700, 'drone', { y: 130, n: 4, spacing: 30 }),
-  ...wave(1180, 'swoop', { y: 170, n: 4, spacing: 32 }),
-  ...wave(1400, 'drone', { y: 120, n: 5, spacing: 28 }),
+  ...wave(900, 'swoop', { y: 170, n: 4, spacing: 32 }),
+  ...wave(1760, 'drone', { y: 120, n: 5, spacing: 28 }),
+  // In the shafts themselves, only what is bolted to the rock. Anything that
+  // flies is created at the right-hand edge of the picture, and during a climb
+  // the corridor there is hundreds of units above or below what you can see.
+  ...wave(1230, 'turret', { y: 'ceil' }),
+  ...wave(1310, 'turret', { y: 'floor' }),
+  ...wave(1390, 'turret', { y: 'ceil' }),
+  ...wave(2310, 'turret', { y: 'floor' }),
+  ...wave(2400, 'turret', { y: 'ceil' }),
+  ...wave(2470, 'turret', { y: 'floor' }),
   ...wave(1660, 'mine', { y: 150, n: 5, spacing: 30 }),
   ...wave(1960, 'swoop', { y: 200, n: 5, spacing: 30 }),
-  ...wave(2400, 'drone', { y: 130, n: 6, spacing: 26 }),
+  ...wave(2680, 'drone', { y: 130, n: 6, spacing: 26 }),
   ...wave(2760, 'mine', { y: 170, n: 5, spacing: 28 }),
   ...wave(3020, 'swoop', { y: 130, n: 6, spacing: 28 }),
   ...wave(3280, 'drone', { y: 180, n: 7, spacing: 24 }),
@@ -406,15 +415,51 @@ export const STAGES = [
     length: 3620,
     speed: 1.12,
     rough: 1.2,
+    /**
+     * The stage that goes up.
+     *
+     * Twice the corridor stops running to the right and turns: it climbs three
+     * hundred and twenty units, sits on a landing for a while, and comes back
+     * down. The camera goes with it, so for those few seconds the picture is
+     * moving up the screen rather than across it and getting to the top is the
+     * thing you are doing.
+     *
+     * How steep it is allowed to be is set by the gun rather than by taste. This
+     * is a shooter and not a platform game, and the gun only points one way: a
+     * shot fired straight ahead from the middle of a corridor climbing at a
+     * slope of m meets the wall after half the gap divided by m. At the slope
+     * this started out with, that was seventy units - you were firing into rock
+     * from the moment the climb began. Held to about five sixths, there is a
+     * fifth of a screen of clear air in front of you the whole way up, which is
+     * enough to fight the guns bolted into the walls with. The corridor is also
+     * two hundred and fifty units across where the flat parts of this stage
+     * pinch to a hundred, so there is room to sit wherever you like while the
+     * world goes past.
+     */
+    climbs: true,
     frames: [
       { at: 0, ceil: 16, floor: 254 },
       { at: 400, ceil: 74, floor: 196 },
       { at: 800, ceil: 46, floor: 234 },
-      { at: 1300, ceil: 88, floor: 184 },
-      { at: 1700, ceil: 36, floor: 240 },
-      { at: 2100, ceil: 96, floor: 172 },
-      { at: 2600, ceil: 52, floor: 226 },
-      { at: 3000, ceil: 84, floor: 190 },
+      { at: 1080, ceil: 36, floor: 244 },
+      // The shaft opens out before it turns: two hundred and fifty units of gap
+      // where the flat parts of this stage pinch to a hundred. This is a
+      // shooter and not a platform game, so a climb has to be somewhere you can
+      // still sit where you like and keep firing while the world goes past.
+      //
+      // Just under a screenful rather than over one, and that is deliberate. At
+      // three hundred and twenty the walls were off the top and bottom of the
+      // picture for the whole climb, which reads as nothing at all - and it puts
+      // anything bolted to them off screen, where it must never be able to shoot
+      // from. At two hundred and fifty the shaft has a visible shape.
+      { at: 1170, ceil: 15, floor: 265 },
+      { at: 1560, ceil: -305, floor: -55 },
+      { at: 1700, ceil: -315, floor: -65 },
+      { at: 1980, ceil: -309, floor: -59 },
+      { at: 2160, ceil: -305, floor: -55 },
+      { at: 2530, ceil: 15, floor: 265 },
+      { at: 2620, ceil: 40, floor: 250 },
+      { at: 2900, ceil: 84, floor: 190 },
       { at: 3300, ceil: 30, floor: 242 },
       { at: 3620, ceil: 14, floor: 256 },
     ],
@@ -563,6 +608,24 @@ export const STAGES = [
 export const STAGE_KEYS = STAGES.map((s) => s.key);
 
 /** Which of the five a stage number is, and how many times round it is. */
+/**
+ * How fast the corridor goes past, here.
+ *
+ * On a flat stage this is just the stage's speed. On one that climbs it is that
+ * speed divided by how steep the corridor is, which is the one line that makes a
+ * shaft feel like a shaft: it keeps the camera moving at a constant rate *along*
+ * the corridor, so a vertical section is flown at the same pace as a straight
+ * one and what changes is the direction the picture moves in, not how quickly.
+ *
+ * Without it a climb is a diagonal taken at speed, which reads as the screen
+ * drifting rather than as going up.
+ */
+export function scrollAt(stage, x) {
+  if (!stage.climbs) return stage.scroll;
+  const m = slopeAt(stage.terrain, x);
+  return stage.scroll / Math.sqrt(1 + m * m);
+}
+
 export function stageIndex(n) {
   return ((n % STAGES.length) + STAGES.length) % STAGES.length;
 }

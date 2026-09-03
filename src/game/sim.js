@@ -35,8 +35,8 @@ import {
 } from '../constants.js';
 import { nextRandom } from '../util.js';
 import { FOES, arrived, placeY, target } from './foes.js';
-import { SPAWN_MARGIN } from './stages.js';
-import { inRock, rockNormal, surfaceAt } from './terrain.js';
+import { SPAWN_MARGIN, scrollAt } from './stages.js';
+import { inRock, liftAt, rockNormal, surfaceAt } from './terrain.js';
 import { anyAlive, coreOpen, difficultyOf, nextStage } from './state.js';
 import {
   chargeLevel, fireBeam, fireMissiles, firePellet, firePod, stepShot,
@@ -92,7 +92,13 @@ export function step(state, inputs = []) {
   // 1. The corridor. It stops dead once the boss is out, because a boss you can
   //    outrun is not a boss.
   if (state.phase === 'play') {
-    state.scroll += state.stage.scroll * DT;
+    // How fast, and in which direction, is the corridor going past? On a flat
+    // stage the answer is always "that way, at the stage's speed". On one that
+    // climbs, the horizontal part slows in proportion to how steep the corridor
+    // is and the camera makes the difference up by going vertically instead.
+    state.scrollSpeed = scrollAt(state.stage, state.scroll);
+    state.scroll += state.scrollSpeed * DT;
+    aimCamera(state);
     spawnDue(state);
     if (state.scroll >= state.stage.bossAt) summonBoss(state);
   }
@@ -117,6 +123,26 @@ export function step(state, inputs = []) {
   return state;
 }
 
+/**
+ * Where the picture is looking.
+ *
+ * The camera holds the middle of the corridor in the middle of the screen, read
+ * a little way ahead of the left edge so that it is already turning as a shaft
+ * arrives rather than a moment after. It is a pure function of how far the
+ * corridor has scrolled - nothing is integrated and nothing is smoothed - which
+ * is what keeps two machines looking at the same thing after ten minutes.
+ */
+function aimCamera(state) {
+  // Read where the ship actually is rather than a long way up the road. Set at
+  // four tenths of a screen ahead, a steep climb put the corridor at the ship a
+  // hundred and twenty units below the middle of the picture and pinned the ship
+  // against the bottom edge with a third of the corridor off screen: measured,
+  // 86 units of a 209-unit gap were visible. Centred on the ship's own station
+  // it stays in the middle of the picture the whole way up.
+  state.scrollY = state.stage.climbs
+    ? liftAt(state.stage.terrain, state.scroll + VIEW_W * 0.28) : 0;
+}
+
 // --- Spawning ----------------------------------------------------------------
 
 /**
@@ -139,13 +165,13 @@ function spawn(state, entry) {
   const x = entry.fixed ? entry.at : state.scroll + VIEW_W + SPAWN_MARGIN;
 
   if (entry.kind === 'gift') {
-    drop(state, x, placeY(state, entry), entry.give);
+    drop(state, x, placeY(state, entry, x), entry.give);
     return;
   }
 
   const def = FOES[entry.kind];
   if (!def) return;
-  const head = makeFoe(state, def, x, placeY(state, entry), entry);
+  const head = makeFoe(state, def, x, placeY(state, entry, x), entry);
   state.foes.push(head);
 
   // A snake is a head and a queue of links, all created at once so that no
@@ -230,7 +256,8 @@ function flyShip(state, ship, mask) {
   // The window you may fly in. It moves with the corridor, so standing still is
   // not an option: doing nothing carries you into the left-hand wall.
   ship.x = Math.max(state.scroll + EDGE_X, Math.min(state.scroll + VIEW_W - EDGE_X, ship.x));
-  ship.y = Math.max(EDGE_TOP, Math.min(VIEW_H - EDGE_TOP, ship.y));
+  ship.y = Math.max(state.scrollY + EDGE_TOP,
+    Math.min(state.scrollY + VIEW_H - EDGE_TOP, ship.y));
 
   const terrain = state.stage.terrain;
   if (inRock(terrain, ship.x, ship.y, SHIP_R)) {
@@ -331,7 +358,7 @@ function pod(state, ship, mask) {
       p.vx = 0;
       p.x = Math.min(p.x, state.scroll + VIEW_W - 24);
     }
-    if (p.vx <= 0) p.x += state.phase === 'play' ? state.stage.scroll * DT : 0;
+    if (p.vx <= 0) p.x += state.phase === 'play' ? state.scrollSpeed * DT : 0;
   } else if (p.mode === 'back') {
     const dx = ship.x - p.x;
     const dy = ship.y - p.y;
@@ -504,7 +531,7 @@ function summonBoss(state) {
     kind: 'boss',
     def,
     x: state.scroll + VIEW_W + 90,
-    y: VIEW_H / 2,
+    y: state.scrollY + VIEW_H / 2,
     hp,
     maxHp: hp,
     age: 0,
@@ -525,7 +552,7 @@ function moveBoss(state) {
   boss.age++;
   if (boss.flash > 0) boss.flash--;
   const def = boss.def;
-  const mid = VIEW_H / 2;
+  const mid = state.scrollY + VIEW_H / 2;
 
   if (def.pattern === 'charge') {
     // In and out, and it tracks whoever is nearest while it does it. The point
@@ -546,7 +573,7 @@ function moveBoss(state) {
   }
 
   const half = def.h / 2 + 6;
-  boss.y = Math.max(half, Math.min(VIEW_H - half, boss.y));
+  boss.y = Math.max(state.scrollY + half, Math.min(state.scrollY + VIEW_H - half, boss.y));
   if (def.tail) {
     boss.trail.push(boss.x, boss.y);
     if (boss.trail.length > def.tail * 12) boss.trail.splice(0, 2);
@@ -581,7 +608,8 @@ function moveBoss(state) {
         state.events.push({ type: 'bolted', x: foe.x, y: foe.y });
       } else {
         const y = boss.y + (i - (def.spawns.n - 1) / 2) * 30;
-        state.foes.push(makeFoe(state, kind, boss.x - 20, Math.max(16, Math.min(VIEW_H - 16, y))));
+        state.foes.push(makeFoe(state, kind, boss.x - 20,
+          Math.max(state.scrollY + 16, Math.min(state.scrollY + VIEW_H - 16, y))));
       }
     }
   }
@@ -593,7 +621,7 @@ function stepShots(state) {
   for (const shot of state.shots) {
     if (!stepShot(state, shot)) shot.dead = true;
     else if (shot.x < state.scroll - CULL_LEFT || shot.x > state.scroll + VIEW_W + CULL_RIGHT
-      || shot.y < -30 || shot.y > VIEW_H + 30) shot.dead = true;
+      || shot.y < state.scrollY - 30 || shot.y > state.scrollY + VIEW_H + 30) shot.dead = true;
   }
 }
 
@@ -627,7 +655,7 @@ function stepFlak(state) {
     f.x += f.vx * DT;
     f.y += f.vy * DT;
     if (f.life <= 0 || f.x < state.scroll - CULL_LEFT || f.x > state.scroll + VIEW_W + 30
-      || f.y < -20 || f.y > VIEW_H + 20) {
+      || f.y < state.scrollY - 20 || f.y > state.scrollY + VIEW_H + 20) {
       f.dead = true;
     } else if (f.kind !== 'mine' && inRock(terrain, f.x, f.y, 0)) {
       f.dead = true;
@@ -955,7 +983,7 @@ function give(state, ship, what, at) {
       down.hull = 2;
       down.invuln = INVULN_TICKS * 2;
       down.x = state.scroll + EDGE_X + 20;
-      down.y = VIEW_H / 2;
+      down.y = state.scrollY + VIEW_H / 2;
       down.pod.has = false;
       down.pod.kind = 'none';
       down.pod.level = 0;
@@ -1020,7 +1048,7 @@ function sweep(state) {
       foe.gone = true;
     }
     else if (foe.x < state.scroll - CULL_LEFT) foe.gone = true;
-    else if (foe.y < -60 || foe.y > VIEW_H + 60) foe.gone = true;
+    else if (foe.y < state.scrollY - 60 || foe.y > state.scrollY + VIEW_H + 60) foe.gone = true;
   }
   if (state.foes.some((f) => f.gone)) state.foes = state.foes.filter((f) => !f.gone);
   if (state.shots.some((s) => s.dead)) state.shots = state.shots.filter((s) => !s.dead);
